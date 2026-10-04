@@ -1,0 +1,34 @@
+using '../main.bicep'
+
+param environmentName = 'permit-readiness-prod'
+param environmentProfile = 'prod'
+param location = 'canadacentral'
+param postgresAdminPassword = readEnvironmentVariable('AZURE_POSTGRES_ADMIN_PASSWORD')
+param authSessionSecret = readEnvironmentVariable('AUTH_SESSION_SECRET')
+param aiProjectDeployments = '[{"name":"gpt-5-mini","model":{"format":"OpenAI","name":"gpt-5-mini"},"sku":{"name":"GlobalStandard","capacity":10}}]'
+param webContainerAppMode = readEnvironmentVariable('WEB_CONTAINER_APP_MODE')
+param webContainerImage = readEnvironmentVariable('WEB_CONTAINER_IMAGE', '')
+param agentEndpoint = readEnvironmentVariable('AGENT_PERMIT_READINESS_AGENT_RESPONSES_ENDPOINT', '')
+param entraExternalIdTenantSubdomain = readEnvironmentVariable('ENTRA_EXTERNAL_ID_TENANT_SUBDOMAIN')
+param entraExternalIdClientId = readEnvironmentVariable('ENTRA_EXTERNAL_ID_CLIENT_ID')
+param entraExternalIdClientSecret = readEnvironmentVariable('ENTRA_EXTERNAL_ID_CLIENT_SECRET')
+param entraExternalIdAuthorityHost = readEnvironmentVariable('ENTRA_EXTERNAL_ID_AUTHORITY_HOST')
+param entraExternalIdRedirectUri = readEnvironmentVariable('ENTRA_EXTERNAL_ID_REDIRECT_URI')
+param entraExternalIdIssuer = readEnvironmentVariable('ENTRA_EXTERNAL_ID_ISSUER')
+param entraExternalIdOrganizationId = readEnvironmentVariable('ENTRA_EXTERNAL_ID_ORGANIZATION_ID')
+param logRetentionDays = 90
+param containerAppMinReplicas = 2
+param containerAppMaxReplicas = 10
+param webCpu = '1.0'
+param webMemory = '2Gi'
+param postgresSkuName = 'Standard_D2ds_v5'
+param postgresSkuTier = 'GeneralPurpose'
+param postgresStorageGb = 128
+param postgresBackupRetentionDays = 35
+param searchSku = 'standard'
+param searchReplicaCount = 2
+param searchSemanticTier = 'standard'
+param registrySku = 'Premium'
+param storageSku = 'Standard_ZRS'
+param keyVaultRetentionDays = 90
+param keyVaultPurgeProtection = true

@@ -1,0 +1,60 @@
+{
+  "schemaVersion": "1.0.0",
+  "releaseId": "generic-guidance-2026-10",
+  "releaseVersion": "1.0.0",
+  "jurisdictionId": "generic-public-sector",
+  "title": "Generic public-sector synthetic guidance",
+  "reviewedAt": "2026-10-03",
+  "sources": [
+    {
+      "id": "generic-site-guidance",
+      "version": "1.0.0",
+      "jurisdictionId": "generic-public-sector",
+      "title": "Example site planning checklist",
+      "canonicalUrl": "https://example.org/guidance/site-planning",
+      "authority": {
+        "name": "Example Public Authority",
+        "url": "https://example.org/"
+      },
+      "content": {
+        "kind": "inline",
+        "mediaType": "text/markdown",
+        "value": "# Site planning\nConfirm site ownership, project boundaries, ground disturbance, access, utilities, and any sensitive features before detailed design. Record unknowns and contact the responsible authority for current submission requirements."
+      },
+      "contentHash": "sha256:0cdd8736cc63f49bec7efa8a8ed57f99c55438e97fe24c5cb2d770fce54244e7",
+      "effectiveFrom": "2026-10-03",
+      "reviewedAt": "2026-10-03",
+      "nextReviewAt": "2027-04-03",
+      "tags": ["site-planning", "ground-disturbance"],
+      "projectTypeIds": ["community-site-work"],
+      "allowedUsage": ["grounding", "citation", "display_summary"],
+      "license": "Original synthetic demonstration content",
+      "synthetic": true
+    },
+    {
+      "id": "generic-access-guidance",
+      "version": "1.0.0",
+      "jurisdictionId": "generic-public-sector",
+      "title": "Example access coordination guide",
+      "canonicalUrl": "https://example.org/guidance/access",
+      "authority": {
+        "name": "Example Transportation Office",
+        "url": "https://example.org/"
+      },
+      "content": {
+        "kind": "inline",
+        "mediaType": "text/markdown",
+        "value": "# Access coordination\nDescribe the existing and proposed vehicle access, expected traffic, sight lines, drainage, and construction timing. Early coordination can identify information needed before work begins."
+      },
+      "contentHash": "sha256:c46bfaf45727d19b59fd087f7c6b7712f71ca602bd4e8c388fbbf4fb72c1b927",
+      "effectiveFrom": "2026-10-03",
+      "reviewedAt": "2026-10-03",
+      "nextReviewAt": "2027-04-03",
+      "tags": ["road-access", "site-planning"],
+      "projectTypeIds": ["community-site-work"],
+      "allowedUsage": ["grounding", "citation", "display_summary"],
+      "license": "Original synthetic demonstration content",
+      "synthetic": true
+    }
+  ]
+}

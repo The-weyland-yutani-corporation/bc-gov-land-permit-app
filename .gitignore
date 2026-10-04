@@ -1,0 +1,42 @@
+# Dependencies
+node_modules/
+
+# Build and test output
+dist/
+.turbo/
+coverage/
+playwright-report/
+test-results/
+
+# Framework output
+.next/
+out/
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+*.local
+
+# Azure and Foundry local state
+.azure/*
+!.azure/.gitignore
+!.azure/README.md
+!.azure/*.env.example
+.foundry/results/
+**/.foundry/cache/
+**/.foundry/results/
+**/.foundry/*.local.yaml
+**/.foundry/*.local.yml
+
+# Editors and operating systems
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# Logs
+*.log
+pnpm-debug.log*

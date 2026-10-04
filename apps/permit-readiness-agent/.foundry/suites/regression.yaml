@@ -1,0 +1,25 @@
+name: permit-readiness-regression
+agent:
+  name: permit-readiness-agent
+  kind: hosted
+dataset:
+  local_uri: ../datasets/regression/v1.0.0/permit-readiness-regression.jsonl
+evaluators:
+  - builtin.relevance
+  - builtin.task_adherence
+  - builtin.intent_resolution
+  - builtin.indirect_attack
+  - builtin.tool_call_accuracy
+  - name: permit-recommendation-completeness
+    version: '1'
+    local_uri: ../evaluators/permit-recommendation-completeness/v1/rubric_dimensions.json
+  - name: uncertainty-citation
+    version: '1'
+    local_uri: ../evaluators/uncertainty-citation/v1/rubric_dimensions.json
+options:
+  eval_model: ${FOUNDRY_EVAL_MODEL}
+  generation_model: ${FOUNDRY_GENERATION_MODEL}
+  pass_threshold: 0.92
+  thresholds_file: thresholds.json
+thresholdProfile: regression
+max_samples: 12

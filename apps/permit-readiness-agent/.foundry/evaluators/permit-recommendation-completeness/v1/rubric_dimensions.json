@@ -1,0 +1,18 @@
+[
+  {
+    "id": "deterministic_permit_coverage",
+    "description": "Every permit in expected_behavior.expected_permit_ids appears exactly once with the deterministic disposition, rule identifiers, and no invented permit or strengthened certainty.",
+    "weight": 10,
+    "always_applicable": true
+  },
+  {
+    "id": "missing_information_and_follow_up",
+    "description": "Required missing facts and follow-up questions are surfaced before a completed report, and the response asks one focused question when expected_behavior requires clarification.",
+    "weight": 6
+  },
+  {
+    "id": "sequence_and_next_actions",
+    "description": "Dependencies, confirm-first ordering, and parallel work match expected_behavior.expected_sequence, and next actions direct the applicant to the responsible authority.",
+    "weight": 5
+  }
+]

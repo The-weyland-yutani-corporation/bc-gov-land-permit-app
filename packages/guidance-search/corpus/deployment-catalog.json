@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "1.0.0",
+  "catalogVersion": "1.0.0",
+  "indexOwner": "permit-readiness-guidance",
+  "manifests": [
+    {
+      "path": "generic-public-sector.manifest.json",
+      "releaseId": "generic-guidance-2026-10",
+      "releaseVersion": "1.0.0",
+      "jurisdictionId": "generic-public-sector",
+      "acceptedExistingReleaseVersions": ["1.0.0"]
+    },
+    {
+      "path": "bc-inspired-public.manifest.json",
+      "releaseId": "bc-inspired-guidance-2026-10",
+      "releaseVersion": "1.0.0",
+      "jurisdictionId": "bc-inspired-synthetic",
+      "acceptedExistingReleaseVersions": ["1.0.0"]
+    }
+  ]
+}

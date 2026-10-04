@@ -1,0 +1,1 @@
+ALTER TABLE "audit_events" ADD CONSTRAINT "audit_events_project_organization_fk" FOREIGN KEY ("project_id","organization_id") REFERENCES "public"."projects"("id","organization_id") ON DELETE restrict ON UPDATE no action;

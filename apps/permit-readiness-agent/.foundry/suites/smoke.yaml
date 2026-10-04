@@ -1,0 +1,10 @@
+name: permit-readiness-smoke
+description:
+  Fast release-blocking coverage for core permit, uncertainty, and safety
+  behavior.
+config: ../../eval.yaml
+dataset:
+  local_uri: ../datasets/smoke/v1.0.0/permit-readiness-smoke.jsonl
+datasetVersion: '1.0.0'
+thresholdProfile: smoke
+max_samples: 5

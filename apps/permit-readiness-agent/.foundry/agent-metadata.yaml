@@ -1,0 +1,14 @@
+schemaVersion: '1.0'
+azd:
+  service: permit-readiness-agent
+evaluationSuites:
+  - name: permit-readiness-smoke
+    suiteConfig: suites/smoke.yaml
+    datasetCache: datasets/smoke/v1.0.0
+    evaluatorCache: evaluators
+    resultDirectory: results/smoke
+  - name: permit-readiness-regression
+    suiteConfig: suites/regression.yaml
+    datasetCache: datasets/regression/v1.0.0
+    evaluatorCache: evaluators
+    resultDirectory: results/regression

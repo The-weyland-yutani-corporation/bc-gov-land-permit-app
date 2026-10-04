@@ -1,0 +1,653 @@
+name: Promote production
+
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: Promote a tested release or roll back a prior promotion run
+        required: true
+        default: promote
+        type: choice
+        options:
+          - promote
+          - rollback
+      tested_ref:
+        description: Full 40-character commit SHA that passed development gates
+        required: false
+        type: string
+      baseline_run_id:
+        description: Run ID containing the reviewed regression baseline artifact
+        required: false
+        type: string
+      baseline_artifact_name:
+        description: Reviewed baseline artifact name
+        required: true
+        default: production-regression-baseline-candidate
+        type: string
+      rollback_run_id:
+        description:
+          Successful promotion run whose previous release should be restored
+        required: false
+        type: string
+      provision:
+        description: Apply separately reviewed production infrastructure changes
+        required: true
+        default: false
+        type: boolean
+      include_demo_data:
+        description: Explicitly initialize synthetic production demo data
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: promote-production
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Verify immutable candidate
+    if: inputs.operation == 'promote'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      actions: read
+      contents: read
+    outputs:
+      commit: ${{ steps.ref.outputs.commit }}
+    steps:
+      - name: Validate promotion inputs
+        env:
+          TESTED_REF: ${{ inputs.tested_ref }}
+          BASELINE_RUN_ID: ${{ inputs.baseline_run_id }}
+        run: |
+          [[ "$TESTED_REF" =~ ^[0-9a-fA-F]{40}$ ]] || {
+            echo "tested_ref must be a full commit SHA" >&2
+            exit 1
+          }
+          [[ "$BASELINE_RUN_ID" =~ ^[0-9]+$ ]] || {
+            echo "baseline_run_id must be a workflow run ID" >&2
+            exit 1
+          }
+      - name: Check out tested commit
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ inputs.tested_ref }}
+          persist-credentials: false
+      - name: Confirm immutable commit
+        id: ref
+        env:
+          TESTED_REF: ${{ inputs.tested_ref }}
+        run: |
+          actual="$(git rev-parse HEAD)"
+          test "$actual" = "$TESTED_REF"
+          echo "commit=$actual" >> "$GITHUB_OUTPUT"
+      - name: Install pnpm
+        uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install frozen dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Download reviewed regression baseline
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: ${{ inputs.baseline_artifact_name }}
+          path: artifacts/baseline
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ inputs.baseline_run_id }}
+      - name: Resolve baseline file
+        id: baseline
+        run: |
+          baseline="$(find artifacts/baseline -type f -name 'baseline.json' -print -quit)"
+          test -n "$baseline"
+          echo "file=$baseline" >> "$GITHUB_OUTPUT"
+      - name: Re-run candidate gates
+        run: |
+          pnpm validate
+          pnpm db:check
+          pnpm --filter @permit-readiness/agent eval:preflight
+          pnpm infra:validate
+
+  candidate:
+    name: Stage and evaluate production candidate
+    if: inputs.operation == 'promote'
+    needs: verify
+    runs-on: [self-hosted, linux, x64, production-vnet]
+    timeout-minutes: 120
+    environment: production
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+    outputs:
+      agent_version: ${{ steps.candidate.outputs.candidate_agent_version }}
+      app_revision: ${{ steps.candidate.outputs.candidate_app_revision }}
+      web_uri: ${{ steps.candidate.outputs.candidate_web_uri }}
+    env:
+      PROD_ENV_NAME: ${{ vars.PROD_AZURE_ENV_NAME }}
+      PROD_LOCATION: ${{ vars.PROD_AZURE_LOCATION }}
+      ENTRA_EXTERNAL_ID_TENANT_SUBDOMAIN:
+        ${{ vars.PROD_ENTRA_EXTERNAL_ID_TENANT_SUBDOMAIN }}
+      ENTRA_EXTERNAL_ID_CLIENT_ID: ${{ vars.PROD_ENTRA_EXTERNAL_ID_CLIENT_ID }}
+      ENTRA_EXTERNAL_ID_AUTHORITY_HOST:
+        ${{ vars.PROD_ENTRA_EXTERNAL_ID_AUTHORITY_HOST }}
+      ENTRA_EXTERNAL_ID_REDIRECT_URI:
+        ${{ vars.PROD_ENTRA_EXTERNAL_ID_REDIRECT_URI }}
+      ENTRA_EXTERNAL_ID_ISSUER: ${{ vars.PROD_ENTRA_EXTERNAL_ID_ISSUER }}
+      ENTRA_EXTERNAL_ID_ORGANIZATION_ID:
+        ${{ vars.PROD_ENTRA_EXTERNAL_ID_ORGANIZATION_ID }}
+    steps:
+      - name: Set up Azure Developer CLI
+        uses: Azure/setup-azd@17a3d5f2aa75a53c7f6fa815c18ef1445c73257f
+        with:
+          version: 1.35.0
+      - name: Log in to Azure with production OIDC
+        uses: azure/login@8216e11d8cd9b42fe925c852af8e76311ff067ac
+        with:
+          client-id: ${{ vars.PROD_AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.PROD_AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.PROD_AZURE_SUBSCRIPTION_ID }}
+      - name: Install pinned Microsoft Foundry extension
+        run:
+          AZURE_DEV_USER_AGENT=microsoft_foundry_skill azd extension install
+          microsoft.foundry --version 1.0.0-beta.2 --force --no-prompt
+      - name: Check out tested commit
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ needs.verify.outputs.commit }}
+          persist-credentials: false
+      - name: Configure production azd environment
+        env:
+          POSTGRES_ADMIN_PASSWORD:
+            ${{ secrets.PROD_AZURE_POSTGRES_ADMIN_PASSWORD }}
+          AUTH_SESSION_SECRET: ${{ secrets.PROD_AUTH_SESSION_SECRET }}
+          ENTRA_EXTERNAL_ID_CLIENT_SECRET:
+            ${{ secrets.PROD_ENTRA_EXTERNAL_ID_CLIENT_SECRET }}
+        run: |
+          : "${PROD_ENV_NAME:?Set PROD_AZURE_ENV_NAME in production}"
+          : "${PROD_LOCATION:?Set PROD_AZURE_LOCATION in production}"
+          : "${POSTGRES_ADMIN_PASSWORD:?Set the production database secret}"
+          : "${AUTH_SESSION_SECRET:?Set PROD_AUTH_SESSION_SECRET}"
+          : "${ENTRA_EXTERNAL_ID_TENANT_SUBDOMAIN:?Set PROD_ENTRA_EXTERNAL_ID_TENANT_SUBDOMAIN}"
+          : "${ENTRA_EXTERNAL_ID_CLIENT_ID:?Set PROD_ENTRA_EXTERNAL_ID_CLIENT_ID}"
+          : "${ENTRA_EXTERNAL_ID_CLIENT_SECRET:?Set the External ID secret}"
+          : "${ENTRA_EXTERNAL_ID_AUTHORITY_HOST:?Set PROD_ENTRA_EXTERNAL_ID_AUTHORITY_HOST}"
+          : "${ENTRA_EXTERNAL_ID_REDIRECT_URI:?Set PROD_ENTRA_EXTERNAL_ID_REDIRECT_URI}"
+          : "${ENTRA_EXTERNAL_ID_ISSUER:?Set PROD_ENTRA_EXTERNAL_ID_ISSUER}"
+          : "${ENTRA_EXTERNAL_ID_ORGANIZATION_ID:?Set PROD_ENTRA_EXTERNAL_ID_ORGANIZATION_ID}"
+          AZURE_DEV_USER_AGENT=microsoft_foundry_skill azd env new "$PROD_ENV_NAME" --no-prompt
+          AZURE_DEV_USER_AGENT=microsoft_foundry_skill azd env set AZURE_ENV_PROFILE prod --no-prompt
+          AZURE_DEV_USER_AGENT=microsoft_foundry_skill azd env set AZURE_ENV_NAME "$PROD_ENV_NAME" --no-prompt
+          AZURE_DEV_USER_AGENT=microsoft_foundry_skill azd env set AZURE_LOCATION "$PROD_LOCATION" --no-prompt
+          AZURE_DEV_USER_AGENT=microsoft_foundry_skill azd env set AZURE_SUBSCRIPTION_ID "${{ vars.PROD_AZURE_SUBSCRIPTION_ID }}" --no-prompt
+          AZURE_DEV_USER_AGENT=microsoft_foundry_skill azd env set AZURE_POSTGRES_ADMIN_PASSWORD "$POSTGRES_ADMIN_PASSWORD" --no-prompt
+          AZURE_DEV_USER_AGENT=microsoft_foundry_skill azd env set AUTH_SESSION_SECRET "$AUTH_SESSION_SECRET" --no-prompt
+          AZURE_DEV_USER_AGENT=microsoft_foundry_skill azd env set ENTRA_EXTERNAL_ID_TENANT_SUBDOMAIN "$ENTRA_EXTERNAL_ID_TENANT_SUBDOMAIN" --no-prompt
+          AZURE_DEV_USER_AGENT=microsoft_foundry_skill azd env set ENTRA_EXTERNAL_ID_CLIENT_ID "$ENTRA_EXTERNAL_ID_CLIENT_ID" --no-prompt
+          AZURE_DEV_USER_AGENT=microsoft_foundry_skill azd env set ENTRA_EXTERNAL_ID_CLIENT_SECRET "$ENTRA_EXTERNAL_ID_CLIENT_SECRET" --no-prompt
+          AZURE_DEV_USER_AGENT=microsoft_foundry_skill azd env set ENTRA_EXTERNAL_ID_AUTHORITY_HOST "$ENTRA_EXTERNAL_ID_AUTHORITY_HOST" --no-prompt
+          AZURE_DEV_USER_AGENT=microsoft_foundry_skill azd env set ENTRA_EXTERNAL_ID_REDIRECT_URI "$ENTRA_EXTERNAL_ID_REDIRECT_URI" --no-prompt
+          AZURE_DEV_USER_AGENT=microsoft_foundry_skill azd env set ENTRA_EXTERNAL_ID_ISSUER "$ENTRA_EXTERNAL_ID_ISSUER" --no-prompt
+          AZURE_DEV_USER_AGENT=microsoft_foundry_skill azd env set ENTRA_EXTERNAL_ID_ORGANIZATION_ID "$ENTRA_EXTERNAL_ID_ORGANIZATION_ID" --no-prompt
+          AZURE_DEV_USER_AGENT=microsoft_foundry_skill azd env set WEB_CONTAINER_APP_MODE existing --no-prompt
+      - name: Install pnpm
+        uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install frozen dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Download reviewed regression baseline
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: ${{ inputs.baseline_artifact_name }}
+          path: artifacts/baseline
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ inputs.baseline_run_id }}
+      - name: Resolve baseline file
+        id: baseline
+        run: |
+          baseline="$(find artifacts/baseline -type f -name 'baseline.json' -print -quit)"
+          test -n "$baseline"
+          echo "file=$baseline" >> "$GITHUB_OUTPUT"
+      - name: Capture currently routed stable release
+        id: previous
+        env:
+          CANDIDATE_COMMIT: ${{ needs.verify.outputs.commit }}
+        run: |
+          mkdir -p artifacts/production
+          eval "$(AZURE_DEV_USER_AGENT=microsoft_foundry_skill azd env get-values)"
+          : "${AZURE_RESOURCE_GROUP:?Missing production resource group}"
+          : "${AZURE_CONTAINER_APP_NAME:?Missing production Container App name}"
+          AZURE_DEV_USER_AGENT=microsoft_foundry_skill azd ai agent endpoint show permit-readiness-agent --output json --no-prompt > artifacts/production/stable-agent-route.json
+          AZURE_DEV_USER_AGENT=microsoft_foundry_skill azd ai agent show permit-readiness-agent --output json --no-prompt > artifacts/production/stable-agent-status.json
+          az containerapp show --name "$AZURE_CONTAINER_APP_NAME" --resource-group "$AZURE_RESOURCE_GROUP" --query "{traffic:properties.configuration.ingress.traffic,latestRevisionName:properties.latestRevisionName}" --output json > artifacts/production/stable-app-traffic.json
+          az containerapp revision list --name "$AZURE_CONTAINER_APP_NAME" --resource-group "$AZURE_RESOURCE_GROUP" --output json > artifacts/production/stable-app-revisions.json
+          node scripts/ci/capture-release.mjs \
+            artifacts/production/stable-agent-route.json \
+            artifacts/production/stable-agent-status.json \
+            artifacts/production/stable-app-traffic.json \
+            artifacts/production/stable-app-revisions.json \
+            artifacts/production/previous-release.json
+      - name: Pin stable public routes before candidate provisioning
+        env:
+          STABLE_AGENT_VERSION:
+            ${{ steps.previous.outputs.stable_agent_version }}
+          STABLE_APP_REVISION: ${{ steps.previous.outputs.stable_app_revision }}
+        run: |
+          node scripts/ci/check-agent-status.mjs artifacts/production/stable-agent-status.json "$STABLE_AGENT_VERSION"
+          node scripts/ci/set-agent-route.mjs azure.yaml permit-readiness-agent "$STABLE_AGENT_VERSION"
+          cp azure.yaml artifacts/production/rollback-azure.yaml
+          AZURE_DEV_USER_AGENT=microsoft_foundry_skill azd ai agent endpoint update permit-readiness-agent --no-prompt
+          AZURE_DEV_USER_AGENT=microsoft_foundry_skill azd ai agent endpoint show permit-readiness-agent --output json --no-prompt > artifacts/production/pinned-agent-route.json
+          node scripts/ci/verify-release.mjs agent-route artifacts/production/pinned-agent-route.json "$STABLE_AGENT_VERSION"
+          bash scripts/ci/rollback-app.sh "$STABLE_APP_REVISION"
+          eval "$(AZURE_DEV_USER_AGENT=microsoft_foundry_skill azd env get-values)"
+          az containerapp ingress traffic show --name "$AZURE_CONTAINER_APP_NAME" --resource-group "$AZURE_RESOURCE_GROUP" --output json > artifacts/production/pinned-app-traffic.json
+          node scripts/ci/verify-release.mjs app-route artifacts/production/pinned-app-traffic.json "$STABLE_APP_REVISION"
+      - name: Provision reviewed production infrastructure
+        if: inputs.provision
+        run:
+          AZURE_DEV_USER_AGENT=microsoft_foundry_skill azd provision --no-prompt
+      - name: Verify stable routes after production provision
+        if: inputs.provision
+        env:
+          STABLE_AGENT_VERSION:
+            ${{ steps.previous.outputs.stable_agent_version }}
+          STABLE_APP_REVISION: ${{ steps.previous.outputs.stable_app_revision }}
+        run:
+          bash scripts/ci/verify-stable-routes.sh "$STABLE_AGENT_VERSION"
+          "$STABLE_APP_REVISION" postprovision
+      - name: Apply backward-compatible database migrations
+        env:
+          DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
+          DATABASE_SSL_MODE: verify-full
+        run: |
+          pnpm db:migrate
+          pnpm db:verify
+      - name: Initialize required database reference data
+        env:
+          DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
+          DATABASE_SSL_MODE: verify-full
+        run: pnpm db:initialize
+      - name: Initialize explicitly approved production demo data
+        if: inputs.include_demo_data
+        env:
+          ALLOW_DEMO_DATA: 'true'
+          DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
+          DATABASE_SSL_MODE: verify-full
+        run: pnpm db:seed:demo
+      - name: Initialize required guidance index and catalog
+        env:
+          GUIDANCE_CATALOG_PATH: packages/guidance-search/corpus/deployment-catalog.json
+        run: |
+          eval "$(AZURE_DEV_USER_AGENT=microsoft_foundry_skill azd env get-values)"
+          : "${AZURE_SEARCH_ENDPOINT:?Provisioning did not emit AZURE_SEARCH_ENDPOINT}"
+          : "${AZURE_SEARCH_INDEX_NAME:?Provisioning did not emit AZURE_SEARCH_INDEX_NAME}"
+          export AZURE_SEARCH_ENDPOINT AZURE_SEARCH_INDEX_NAME
+          pnpm guidance:initialize
+      - name: Pin stable public routes before candidate deployment
+        env:
+          STABLE_AGENT_VERSION:
+            ${{ steps.previous.outputs.stable_agent_version }}
+          STABLE_APP_REVISION: ${{ steps.previous.outputs.stable_app_revision }}
+        run: |
+          node scripts/ci/check-agent-status.mjs artifacts/production/stable-agent-status.json "$STABLE_AGENT_VERSION"
+          node scripts/ci/set-agent-route.mjs azure.yaml permit-readiness-agent "$STABLE_AGENT_VERSION"
+          cp azure.yaml artifacts/production/rollback-azure.yaml
+          AZURE_DEV_USER_AGENT=microsoft_foundry_skill azd ai agent endpoint update permit-readiness-agent --no-prompt
+          AZURE_DEV_USER_AGENT=microsoft_foundry_skill azd ai agent endpoint show permit-readiness-agent --output json --no-prompt > artifacts/production/pinned-agent-route.json
+          node scripts/ci/verify-release.mjs agent-route artifacts/production/pinned-agent-route.json "$STABLE_AGENT_VERSION"
+          bash scripts/ci/rollback-app.sh "$STABLE_APP_REVISION"
+          eval "$(AZURE_DEV_USER_AGENT=microsoft_foundry_skill azd env get-values)"
+          az containerapp ingress traffic show --name "$AZURE_CONTAINER_APP_NAME" --resource-group "$AZURE_RESOURCE_GROUP" --output json > artifacts/production/pinned-app-traffic.json
+          node scripts/ci/verify-release.mjs app-route artifacts/production/pinned-app-traffic.json "$STABLE_APP_REVISION"
+      - name: Snapshot production versions immediately before deployment
+        run: |
+          eval "$(AZURE_DEV_USER_AGENT=microsoft_foundry_skill azd env get-values)"
+          AZURE_DEV_USER_AGENT=microsoft_foundry_skill azd ai agent show permit-readiness-agent --output json --no-prompt > artifacts/production/predeploy-agent-status.json
+          az containerapp revision list --name "$AZURE_CONTAINER_APP_NAME" --resource-group "$AZURE_RESOURCE_GROUP" --output json > artifacts/production/predeploy-app-revisions.json
+      - name: Deploy production application and agent candidate
+        id: deploy
+        run: |
+          echo "attempted=true" >> "$GITHUB_OUTPUT"
+          AZURE_DEV_USER_AGENT=microsoft_foundry_skill azd deploy --all --no-prompt
+      - name: Discover exact production candidate and prove stable routing
+        id: candidate
+        env:
+          CANDIDATE_COMMIT: ${{ needs.verify.outputs.commit }}
+          STABLE_AGENT_VERSION:
+            ${{ steps.previous.outputs.stable_agent_version }}
+          STABLE_APP_REVISION: ${{ steps.previous.outputs.stable_app_revision }}
+        run: |
+          eval "$(AZURE_DEV_USER_AGENT=microsoft_foundry_skill azd env get-values)"
+          : "${AGENT_PERMIT_READINESS_AGENT_VERSION:?Deployment did not emit a production agent version}"
+          : "${SERVICE_WEB_URI:?Deployment did not emit SERVICE_WEB_URI}"
+          echo "::add-mask::$SERVICE_WEB_URI"
+          AZURE_DEV_USER_AGENT=microsoft_foundry_skill azd ai agent show permit-readiness-agent --output json --no-prompt > artifacts/production/candidate-agent-status.json
+          AZURE_DEV_USER_AGENT=microsoft_foundry_skill azd ai agent endpoint show permit-readiness-agent --output json --no-prompt > artifacts/production/postdeploy-agent-route.json
+          az containerapp revision list --name "$AZURE_CONTAINER_APP_NAME" --resource-group "$AZURE_RESOURCE_GROUP" --output json > artifacts/production/postdeploy-app-revisions.json
+          az containerapp ingress traffic show --name "$AZURE_CONTAINER_APP_NAME" --resource-group "$AZURE_RESOURCE_GROUP" --output json > artifacts/production/postdeploy-app-traffic.json
+          node scripts/ci/discover-candidate.mjs \
+            artifacts/production/predeploy-agent-status.json \
+            artifacts/production/candidate-agent-status.json \
+            artifacts/production/predeploy-app-revisions.json \
+            artifacts/production/postdeploy-app-revisions.json \
+            artifacts/production/candidate-release.json \
+            "$AGENT_PERMIT_READINESS_AGENT_VERSION"
+          node scripts/ci/verify-release.mjs agent-route artifacts/production/postdeploy-agent-route.json "$STABLE_AGENT_VERSION"
+          node scripts/ci/verify-release.mjs app-route artifacts/production/postdeploy-app-traffic.json "$STABLE_APP_REVISION"
+          node scripts/ci/check-agent-status.mjs artifacts/production/candidate-agent-status.json "$AGENT_PERMIT_READINESS_AGENT_VERSION"
+          node scripts/ci/capture-release-context.mjs artifacts/production/release-context.json
+      - name: Invoke exact production candidate while routing stays stable
+        env:
+          CANDIDATE_AGENT_VERSION:
+            ${{ steps.candidate.outputs.candidate_agent_version }}
+        run: |
+          AZURE_DEV_USER_AGENT=microsoft_foundry_skill azd ai agent invoke permit-readiness-agent --version "$CANDIDATE_AGENT_VERSION" --new-session --output raw --no-prompt "Return bounded preparation guidance with citations for a synthetic land-use project." > artifacts/production/agent-smoke.txt
+          test -s artifacts/production/agent-smoke.txt
+      - name: Check exact candidate revision and stable public health
+        env:
+          CANDIDATE_WEB_URI: ${{ steps.candidate.outputs.candidate_web_uri }}
+        run: |
+          node scripts/ci/check-health.mjs "$CANDIDATE_WEB_URI"
+          eval "$(AZURE_DEV_USER_AGENT=microsoft_foundry_skill azd env get-values)"
+          node scripts/ci/check-health.mjs "$SERVICE_WEB_URI"
+      - name: Run exact-candidate regression and baseline gate
+        env:
+          BASELINE_FILE: ${{ steps.baseline.outputs.file }}
+          CANDIDATE_AGENT_VERSION:
+            ${{ steps.candidate.outputs.candidate_agent_version }}
+        run: |
+          eval "$(AZURE_DEV_USER_AGENT=microsoft_foundry_skill azd env get-values)"
+          export FOUNDRY_EVAL_MODEL="$AZURE_AI_MODEL_DEPLOYMENT_NAME"
+          export FOUNDRY_GENERATION_MODEL="$AZURE_AI_MODEL_DEPLOYMENT_NAME"
+          bash scripts/ci/run-foundry-eval.sh \
+            apps/permit-readiness-agent/.foundry/suites/regression.yaml \
+            apps/permit-readiness-agent/.foundry/results/regression/current.json \
+            regression "$BASELINE_FILE" "$CANDIDATE_AGENT_VERSION"
+      - name: Record candidate gate success
+        env:
+          CANDIDATE_AGENT_VERSION:
+            ${{ steps.candidate.outputs.candidate_agent_version }}
+          CANDIDATE_APP_REVISION:
+            ${{ steps.candidate.outputs.candidate_app_revision }}
+        run: |
+          printf '%s\n' \
+            '## Production candidate gates passed' \
+            "- Commit: ${{ needs.verify.outputs.commit }}" \
+            "- Production agent candidate: $CANDIDATE_AGENT_VERSION" \
+            "- Container App candidate: $CANDIDATE_APP_REVISION" \
+            '- Public routing remains on the captured stable release.' \
+            >> "$GITHUB_STEP_SUMMARY"
+      - name: Restore stable routes after candidate failure or cancellation
+        if:
+          ${{ always() && steps.deploy.outputs.attempted == 'true' && (failure()
+          || cancelled()) }}
+        env:
+          STABLE_AGENT_VERSION:
+            ${{ steps.previous.outputs.stable_agent_version }}
+          STABLE_APP_REVISION: ${{ steps.previous.outputs.stable_app_revision }}
+        run: |
+          set +e
+          cp artifacts/production/rollback-azure.yaml azure.yaml
+          AZURE_DEV_USER_AGENT=microsoft_foundry_skill azd ai agent endpoint update permit-readiness-agent --no-prompt
+          agent_update=$?
+          AZURE_DEV_USER_AGENT=microsoft_foundry_skill azd ai agent endpoint show permit-readiness-agent --output json --no-prompt > artifacts/production/restored-agent-route.json
+          node scripts/ci/verify-release.mjs agent-route artifacts/production/restored-agent-route.json "$STABLE_AGENT_VERSION"
+          agent_verify=$?
+          bash scripts/ci/rollback-app.sh "$STABLE_APP_REVISION"
+          app_update=$?
+          eval "$(AZURE_DEV_USER_AGENT=microsoft_foundry_skill azd env get-values)"
+          az containerapp ingress traffic show --name "$AZURE_CONTAINER_APP_NAME" --resource-group "$AZURE_RESOURCE_GROUP" --output json > artifacts/production/restored-app-traffic.json
+          node scripts/ci/verify-release.mjs app-route artifacts/production/restored-app-traffic.json "$STABLE_APP_REVISION"
+          app_verify=$?
+          exit $((agent_update || agent_verify || app_update || app_verify))
+      - name: Upload reviewed regression baseline candidate
+        if: success()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: production-regression-baseline-candidate
+          path: artifacts/production/baseline.json
+          retention-days: 30
+      - name: Upload production release evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: production-release-metadata
+          path: artifacts/production
+          retention-days: 30
+
+  promote:
+    name: Approve and promote candidate routing
+    if: inputs.operation == 'promote'
+    needs: [verify, candidate]
+    runs-on: [self-hosted, linux, x64, production-vnet]
+    timeout-minutes: 30
+    environment: production
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+    steps:
+      - name: Set up Azure Developer CLI
+        uses: Azure/setup-azd@17a3d5f2aa75a53c7f6fa815c18ef1445c73257f
+        with:
+          version: 1.35.0
+      - name: Log in to Azure with production OIDC
+        uses: azure/login@8216e11d8cd9b42fe925c852af8e76311ff067ac
+        with:
+          client-id: ${{ vars.PROD_AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.PROD_AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.PROD_AZURE_SUBSCRIPTION_ID }}
+      - name: Install pinned Microsoft Foundry extension
+        run:
+          AZURE_DEV_USER_AGENT=microsoft_foundry_skill azd extension install
+          microsoft.foundry --version 1.0.0-beta.2 --force --no-prompt
+      - name: Check out tested commit
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ needs.verify.outputs.commit }}
+          persist-credentials: false
+      - name: Install pnpm
+        uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install frozen dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Download gated candidate evidence
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: production-release-metadata
+          path: artifacts/production
+      - name: Configure release context
+        id: release
+        env:
+          PROD_ENV_NAME: ${{ vars.PROD_AZURE_ENV_NAME }}
+          PROD_LOCATION: ${{ vars.PROD_AZURE_LOCATION }}
+        run: |
+          AZURE_DEV_USER_AGENT=microsoft_foundry_skill azd env new "$PROD_ENV_NAME" --no-prompt
+          AZURE_DEV_USER_AGENT=microsoft_foundry_skill azd env set AZURE_ENV_PROFILE prod --no-prompt
+          AZURE_DEV_USER_AGENT=microsoft_foundry_skill azd env set AZURE_LOCATION "$PROD_LOCATION" --no-prompt
+          while IFS=$'\t' read -r name value; do
+            AZURE_DEV_USER_AGENT=microsoft_foundry_skill azd env set "$name" "$value" --no-prompt
+          done < <(jq -r 'to_entries[] | [.key, .value] | @tsv' artifacts/production/release-context.json)
+          node scripts/ci/verify-release.mjs metadata artifacts/production/previous-release.json artifacts/production/candidate-release.json
+      - name: Promote exact candidate routes
+        id: promote_routes
+        env:
+          CANDIDATE_AGENT_VERSION:
+            ${{ steps.release.outputs.candidate_agent_version }}
+          CANDIDATE_APP_REVISION:
+            ${{ steps.release.outputs.candidate_app_revision }}
+        run: |
+          echo "attempted=true" >> "$GITHUB_OUTPUT"
+          bash scripts/ci/rollback-app.sh "$CANDIDATE_APP_REVISION"
+          node scripts/ci/set-agent-route.mjs azure.yaml permit-readiness-agent "$CANDIDATE_AGENT_VERSION"
+          AZURE_DEV_USER_AGENT=microsoft_foundry_skill azd ai agent endpoint update permit-readiness-agent --no-prompt
+          eval "$(AZURE_DEV_USER_AGENT=microsoft_foundry_skill azd env get-values)"
+          az containerapp ingress traffic show --name "$AZURE_CONTAINER_APP_NAME" --resource-group "$AZURE_RESOURCE_GROUP" --output json > artifacts/production/promoted-app-traffic.json
+          AZURE_DEV_USER_AGENT=microsoft_foundry_skill azd ai agent endpoint show permit-readiness-agent --output json --no-prompt > artifacts/production/promoted-agent-route.json
+          node scripts/ci/verify-release.mjs app-route artifacts/production/promoted-app-traffic.json "$CANDIDATE_APP_REVISION"
+          node scripts/ci/verify-release.mjs agent-route artifacts/production/promoted-agent-route.json "$CANDIDATE_AGENT_VERSION"
+      - name: Verify promoted public health
+        run: |
+          eval "$(AZURE_DEV_USER_AGENT=microsoft_foundry_skill azd env get-values)"
+          node scripts/ci/check-health.mjs "$SERVICE_WEB_URI"
+      - name: Record approved promotion
+        env:
+          CANDIDATE_AGENT_VERSION:
+            ${{ steps.release.outputs.candidate_agent_version }}
+          CANDIDATE_APP_REVISION:
+            ${{ steps.release.outputs.candidate_app_revision }}
+        run: |
+          cp artifacts/production/candidate-release.json artifacts/production/approved-release.json
+          printf '%s\n' \
+            '## Production promotion approved' \
+            "- Commit: ${{ needs.verify.outputs.commit }}" \
+            "- Agent version: $CANDIDATE_AGENT_VERSION" \
+            "- Container App revision: $CANDIDATE_APP_REVISION" \
+            >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload promotion result
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: production-promotion-result
+          path: artifacts/production
+          retention-days: 30
+      - name: Restore stable routes after promotion failure or cancellation
+        if:
+          ${{ always() && steps.promote_routes.outputs.attempted == 'true' &&
+          (failure() || cancelled()) }}
+        env:
+          STABLE_AGENT_VERSION:
+            ${{ steps.release.outputs.stable_agent_version }}
+          STABLE_APP_REVISION: ${{ steps.release.outputs.stable_app_revision }}
+        run: |
+          set +e
+          cp artifacts/production/rollback-azure.yaml azure.yaml
+          AZURE_DEV_USER_AGENT=microsoft_foundry_skill azd ai agent endpoint update permit-readiness-agent --no-prompt
+          agent_update=$?
+          bash scripts/ci/rollback-app.sh "$STABLE_APP_REVISION"
+          app_update=$?
+          eval "$(AZURE_DEV_USER_AGENT=microsoft_foundry_skill azd env get-values)"
+          AZURE_DEV_USER_AGENT=microsoft_foundry_skill azd ai agent endpoint show permit-readiness-agent --output json --no-prompt > artifacts/production/restored-agent-route.json
+          az containerapp ingress traffic show --name "$AZURE_CONTAINER_APP_NAME" --resource-group "$AZURE_RESOURCE_GROUP" --output json > artifacts/production/restored-app-traffic.json
+          node scripts/ci/verify-release.mjs agent-route artifacts/production/restored-agent-route.json "$STABLE_AGENT_VERSION"
+          agent_verify=$?
+          node scripts/ci/verify-release.mjs app-route artifacts/production/restored-app-traffic.json "$STABLE_APP_REVISION"
+          app_verify=$?
+          exit $((agent_update || app_update || agent_verify || app_verify))
+      - name: Upload promotion recovery evidence
+        if:
+          ${{ always() && steps.promote_routes.outputs.attempted == 'true' &&
+          (failure() || cancelled()) }}
+        continue-on-error: true
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: production-promotion-recovery
+          path: artifacts/production
+          retention-days: 30
+
+  rollback:
+    name: Restore a recorded stable release
+    if: inputs.operation == 'rollback'
+    runs-on: [self-hosted, linux, x64, production-vnet]
+    timeout-minutes: 30
+    environment: production
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+    steps:
+      - name: Validate rollback input
+        env:
+          ROLLBACK_RUN_ID: ${{ inputs.rollback_run_id }}
+        run: |
+          [[ "$ROLLBACK_RUN_ID" =~ ^[0-9]+$ ]] || {
+            echo "rollback_run_id must be a promotion workflow run ID" >&2
+            exit 1
+          }
+      - name: Set up Azure Developer CLI
+        uses: Azure/setup-azd@17a3d5f2aa75a53c7f6fa815c18ef1445c73257f
+        with:
+          version: 1.35.0
+      - name: Log in to Azure with production OIDC
+        uses: azure/login@8216e11d8cd9b42fe925c852af8e76311ff067ac
+        with:
+          client-id: ${{ vars.PROD_AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.PROD_AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.PROD_AZURE_SUBSCRIPTION_ID }}
+      - name: Install pinned Microsoft Foundry extension
+        run:
+          AZURE_DEV_USER_AGENT=microsoft_foundry_skill azd extension install
+          microsoft.foundry --version 1.0.0-beta.2 --force --no-prompt
+      - name: Check out rollback tooling
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Install pnpm
+        uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install frozen dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Download recorded rollback evidence
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: production-release-metadata
+          path: artifacts/production
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ inputs.rollback_run_id }}
+      - name: Configure recorded release context
+        id: release
+        env:
+          PROD_ENV_NAME: ${{ vars.PROD_AZURE_ENV_NAME }}
+          PROD_LOCATION: ${{ vars.PROD_AZURE_LOCATION }}
+        run: |
+          AZURE_DEV_USER_AGENT=microsoft_foundry_skill azd env new "$PROD_ENV_NAME" --no-prompt
+          AZURE_DEV_USER_AGENT=microsoft_foundry_skill azd env set AZURE_ENV_PROFILE prod --no-prompt
+          AZURE_DEV_USER_AGENT=microsoft_foundry_skill azd env set AZURE_LOCATION "$PROD_LOCATION" --no-prompt
+          while IFS=$'\t' read -r name value; do
+            AZURE_DEV_USER_AGENT=microsoft_foundry_skill azd env set "$name" "$value" --no-prompt
+          done < <(jq -r 'to_entries[] | [.key, .value] | @tsv' artifacts/production/release-context.json)
+          node scripts/ci/verify-release.mjs metadata artifacts/production/previous-release.json
+      - name: Restore exact recorded stable routes
+        env:
+          STABLE_AGENT_VERSION:
+            ${{ steps.release.outputs.stable_agent_version }}
+          STABLE_APP_REVISION: ${{ steps.release.outputs.stable_app_revision }}
+        run: |
+          cp artifacts/production/rollback-azure.yaml azure.yaml
+          AZURE_DEV_USER_AGENT=microsoft_foundry_skill azd ai agent endpoint update permit-readiness-agent --no-prompt
+          bash scripts/ci/rollback-app.sh "$STABLE_APP_REVISION"
+          eval "$(AZURE_DEV_USER_AGENT=microsoft_foundry_skill azd env get-values)"
+          AZURE_DEV_USER_AGENT=microsoft_foundry_skill azd ai agent endpoint show permit-readiness-agent --output json --no-prompt > artifacts/production/manual-restored-agent-route.json
+          az containerapp ingress traffic show --name "$AZURE_CONTAINER_APP_NAME" --resource-group "$AZURE_RESOURCE_GROUP" --output json > artifacts/production/manual-restored-app-traffic.json
+          node scripts/ci/verify-release.mjs agent-route artifacts/production/manual-restored-agent-route.json "$STABLE_AGENT_VERSION"
+          node scripts/ci/verify-release.mjs app-route artifacts/production/manual-restored-app-traffic.json "$STABLE_APP_REVISION"
+          node scripts/ci/check-health.mjs "$SERVICE_WEB_URI"
+      - name: Upload manual rollback evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: production-manual-rollback-result
+          path: artifacts/production
+          retention-days: 30

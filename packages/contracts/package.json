@@ -1,0 +1,28 @@
+{
+  "name": "@permit-readiness/contracts",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "node ../../scripts/validation/scaffold-task.mjs dev",
+    "lint": "node ../../scripts/validation/validate-package.mjs",
+    "test": "pnpm build && node --test ../../scripts/validation/package-boundary.test.mjs test/contracts.test.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@ts-rest/core": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "typescript": "catalog:"
+  }
+}

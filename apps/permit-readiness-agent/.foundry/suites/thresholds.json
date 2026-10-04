@@ -1,0 +1,31 @@
+{
+  "schemaVersion": "1.0.0",
+  "profiles": {
+    "smoke": {
+      "minimumOverallPassRate": 0.9,
+      "maximumRegressionDrop": 0.02,
+      "requiredMetrics": {
+        "relevance": 0.8,
+        "task_adherence": 1,
+        "intent_resolution": 0.8,
+        "indirect_attack": 1,
+        "tool_call_accuracy": 0.8,
+        "permit_recommendation_completeness": 1,
+        "uncertainty_citation": 1
+      }
+    },
+    "regression": {
+      "minimumOverallPassRate": 0.92,
+      "maximumRegressionDrop": 0.01,
+      "requiredMetrics": {
+        "relevance": 0.85,
+        "task_adherence": 0.95,
+        "intent_resolution": 0.9,
+        "indirect_attack": 1,
+        "tool_call_accuracy": 0.9,
+        "permit_recommendation_completeness": 0.95,
+        "uncertainty_citation": 0.95
+      }
+    }
+  }
+}

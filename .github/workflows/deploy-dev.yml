@@ -1,0 +1,223 @@
+name: Deploy development
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/deploy-dev.yml'
+      - 'apps/**'
+      - 'infra/**'
+      - 'packages/**'
+      - 'scripts/**'
+      - 'azure.yaml'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+  workflow_dispatch:
+    inputs:
+      provision:
+        description: Provision reviewed infrastructure before deployment
+        required: true
+        default: false
+        type: boolean
+      include_demo_data:
+        description: Initialize synthetic demo user, organization, and project
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-development
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Verify development candidate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Install pnpm
+        uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Run repository validation
+        run: pnpm validate
+      - name: Check database and evaluation assets
+        run: |
+          pnpm db:check
+          pnpm --filter @permit-readiness/agent eval:preflight
+          pnpm infra:validate
+
+  deploy:
+    name: Deploy and evaluate development
+    needs: verify
+    runs-on: [self-hosted, linux, x64, development-vnet]
+    timeout-minutes: 90
+    environment: development
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      DEV_ENV_NAME: ${{ vars.DEV_AZURE_ENV_NAME }}
+      DEV_LOCATION: ${{ vars.DEV_AZURE_LOCATION }}
+      DEV_ENABLE_SYNTHETIC_AUTH:
+        ${{ vars.DEV_ENABLE_SYNTHETIC_AUTH || 'false' }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Install pnpm
+        uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Set up Azure Developer CLI
+        uses: Azure/setup-azd@17a3d5f2aa75a53c7f6fa815c18ef1445c73257f
+        with:
+          version: 1.35.0
+      - name: Log in to Azure with development OIDC
+        uses: azure/login@8216e11d8cd9b42fe925c852af8e76311ff067ac
+        with:
+          client-id: ${{ vars.DEV_AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.DEV_AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.DEV_AZURE_SUBSCRIPTION_ID }}
+      - name: Install pinned Microsoft Foundry extension
+        run:
+          AZURE_DEV_USER_AGENT=microsoft_foundry_skill azd extension install
+          microsoft.foundry --version 1.0.0-beta.2 --force --no-prompt
+      - name: Configure development azd environment
+        env:
+          POSTGRES_ADMIN_PASSWORD:
+            ${{ secrets.DEV_AZURE_POSTGRES_ADMIN_PASSWORD }}
+          AUTH_SESSION_SECRET: ${{ secrets.DEV_AUTH_SESSION_SECRET }}
+          ENABLE_SYNTHETIC_AUTH: ${{ env.DEV_ENABLE_SYNTHETIC_AUTH }}
+        run: |
+          : "${DEV_ENV_NAME:?Set DEV_AZURE_ENV_NAME in the development environment}"
+          : "${DEV_LOCATION:?Set DEV_AZURE_LOCATION in the development environment}"
+          : "${POSTGRES_ADMIN_PASSWORD:?Set DEV_AZURE_POSTGRES_ADMIN_PASSWORD}"
+          : "${AUTH_SESSION_SECRET:?Set DEV_AUTH_SESSION_SECRET}"
+          : "${ENABLE_SYNTHETIC_AUTH:?Set DEV_ENABLE_SYNTHETIC_AUTH}"
+          AZURE_DEV_USER_AGENT=microsoft_foundry_skill azd env new "$DEV_ENV_NAME" --no-prompt
+          AZURE_DEV_USER_AGENT=microsoft_foundry_skill azd env set AZURE_ENV_PROFILE dev --no-prompt
+          AZURE_DEV_USER_AGENT=microsoft_foundry_skill azd env set AZURE_ENV_NAME "$DEV_ENV_NAME" --no-prompt
+          AZURE_DEV_USER_AGENT=microsoft_foundry_skill azd env set AZURE_LOCATION "$DEV_LOCATION" --no-prompt
+          AZURE_DEV_USER_AGENT=microsoft_foundry_skill azd env set AZURE_SUBSCRIPTION_ID "${{ vars.DEV_AZURE_SUBSCRIPTION_ID }}" --no-prompt
+          AZURE_DEV_USER_AGENT=microsoft_foundry_skill azd env set AZURE_POSTGRES_ADMIN_PASSWORD "$POSTGRES_ADMIN_PASSWORD" --no-prompt
+          AZURE_DEV_USER_AGENT=microsoft_foundry_skill azd env set AUTH_SESSION_SECRET "$AUTH_SESSION_SECRET" --no-prompt
+          AZURE_DEV_USER_AGENT=microsoft_foundry_skill azd env set ENABLE_SYNTHETIC_AUTH "$ENABLE_SYNTHETIC_AUTH" --no-prompt
+          AZURE_DEV_USER_AGENT=microsoft_foundry_skill azd env set WEB_CONTAINER_APP_MODE existing --no-prompt
+      - name: Provision reviewed development infrastructure
+        if:
+          (github.event_name == 'workflow_dispatch' && inputs.provision) ||
+          (github.event_name == 'push' && vars.DEV_PROVISION_ON_MAIN == 'true')
+        run:
+          AZURE_DEV_USER_AGENT=microsoft_foundry_skill azd provision --no-prompt
+      - name: Apply backward-compatible database migrations
+        env:
+          DATABASE_URL: ${{ secrets.DEV_DATABASE_URL }}
+          DATABASE_SSL_MODE: verify-full
+        run: |
+          pnpm db:migrate
+          pnpm db:verify
+      - name: Initialize required database reference data
+        env:
+          DATABASE_URL: ${{ secrets.DEV_DATABASE_URL }}
+          DATABASE_SSL_MODE: verify-full
+        run: pnpm db:initialize
+      - name: Initialize optional development demo data
+        if: github.event_name == 'push' || inputs.include_demo_data
+        env:
+          ALLOW_DEMO_DATA: 'true'
+          DATABASE_URL: ${{ secrets.DEV_DATABASE_URL }}
+          DATABASE_SSL_MODE: verify-full
+        run: pnpm db:seed:demo
+      - name: Initialize required guidance index and catalog
+        env:
+          GUIDANCE_CATALOG_PATH: packages/guidance-search/corpus/deployment-catalog.json
+        run: |
+          eval "$(AZURE_DEV_USER_AGENT=microsoft_foundry_skill azd env get-values)"
+          : "${AZURE_SEARCH_ENDPOINT:?Provisioning did not emit AZURE_SEARCH_ENDPOINT}"
+          : "${AZURE_SEARCH_INDEX_NAME:?Provisioning did not emit AZURE_SEARCH_INDEX_NAME}"
+          export AZURE_SEARCH_ENDPOINT AZURE_SEARCH_INDEX_NAME
+          pnpm guidance:initialize
+      - name: Deploy application and hosted agent
+        run:
+          AZURE_DEV_USER_AGENT=microsoft_foundry_skill azd deploy --all
+          --no-prompt
+      - name: Resolve deployed candidate
+        id: candidate
+        shell: bash
+        run: |
+          eval "$(AZURE_DEV_USER_AGENT=microsoft_foundry_skill azd env get-values)"
+          : "${SERVICE_WEB_URI:?Deployment did not emit SERVICE_WEB_URI}"
+          : "${AGENT_PERMIT_READINESS_AGENT_NAME:?Deployment did not emit agent name}"
+          : "${AGENT_PERMIT_READINESS_AGENT_VERSION:?Deployment did not emit agent version}"
+          : "${AZURE_AI_MODEL_DEPLOYMENT_NAME:?Deployment did not emit model deployment}"
+          echo "::add-mask::$SERVICE_WEB_URI"
+          echo "web_uri=$SERVICE_WEB_URI" >> "$GITHUB_OUTPUT"
+          echo "agent_name=$AGENT_PERMIT_READINESS_AGENT_NAME" >> "$GITHUB_OUTPUT"
+          echo "agent_version=$AGENT_PERMIT_READINESS_AGENT_VERSION" >> "$GITHUB_OUTPUT"
+          echo "model=$AZURE_AI_MODEL_DEPLOYMENT_NAME" >> "$GITHUB_OUTPUT"
+      - name: Verify exact hosted-agent status
+        env:
+          AGENT_VERSION: ${{ steps.candidate.outputs.agent_version }}
+        run: |
+          mkdir -p artifacts/development
+          AZURE_DEV_USER_AGENT=microsoft_foundry_skill azd ai agent show permit-readiness-agent --output json --no-prompt > artifacts/development/agent-status.json
+          node scripts/ci/check-agent-status.mjs artifacts/development/agent-status.json "$AGENT_VERSION"
+      - name: Invoke exact hosted-agent candidate
+        env:
+          AGENT_VERSION: ${{ steps.candidate.outputs.agent_version }}
+        run: |
+          AZURE_DEV_USER_AGENT=microsoft_foundry_skill azd ai agent invoke permit-readiness-agent --version "$AGENT_VERSION" --new-session --output raw --no-prompt "Return bounded preparation guidance with citations for a synthetic land-use project." > artifacts/development/agent-smoke.txt
+          test -s artifacts/development/agent-smoke.txt
+      - name: Check deployed web health
+        env:
+          WEB_URI: ${{ steps.candidate.outputs.web_uri }}
+        run: |
+          curl --fail --silent --show-error --retry 8 --retry-all-errors --retry-delay 10 "$WEB_URI/api/v1/health/live"
+          curl --fail --silent --show-error --retry 8 --retry-all-errors --retry-delay 10 "$WEB_URI/api/v1/health/ready"
+      - name: Run and gate Foundry smoke evaluation
+        env:
+          FOUNDRY_EVAL_MODEL: ${{ steps.candidate.outputs.model }}
+          FOUNDRY_GENERATION_MODEL: ${{ steps.candidate.outputs.model }}
+        run: |
+          mkdir -p apps/permit-readiness-agent/.foundry/results/smoke
+          AZURE_DEV_USER_AGENT=microsoft_foundry_skill azd ai agent eval run --config apps/permit-readiness-agent/eval.yaml --name "dev-smoke-${GITHUB_SHA}" --no-prompt
+          AZURE_DEV_USER_AGENT=microsoft_foundry_skill azd ai agent eval show --out-file apps/permit-readiness-agent/.foundry/results/smoke/current.json --no-prompt
+          pnpm --filter @permit-readiness/agent eval:check -- --results .foundry/results/smoke/current.json --profile smoke
+      - name: Summarize development deployment
+        if: always()
+        env:
+          AGENT_VERSION: ${{ steps.candidate.outputs.agent_version }}
+        run: |
+          {
+            echo "## Development deployment"
+            echo "- Commit: \`${GITHUB_SHA}\`"
+            echo "- Agent version: \`${AGENT_VERSION:-unavailable}\`"
+            echo "- Provision requested: \`${{ inputs.provision || false }}\`"
+            echo "- Result: \`${{ job.status }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload development evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: development-release-${{ github.sha }}
+          path: |
+            artifacts/development
+            apps/permit-readiness-agent/.foundry/results/smoke/current.json
+          if-no-files-found: warn
+          retention-days: 30

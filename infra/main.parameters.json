@@ -1,0 +1,57 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "environmentName": {
+      "value": "${AZURE_ENV_NAME}"
+    },
+    "environmentProfile": {
+      "value": "${AZURE_ENV_PROFILE=dev}"
+    },
+    "location": {
+      "value": "${AZURE_LOCATION}"
+    },
+    "postgresAdminPassword": {
+      "value": "${AZURE_POSTGRES_ADMIN_PASSWORD}"
+    },
+    "authSessionSecret": {
+      "value": "${AUTH_SESSION_SECRET}"
+    },
+    "enableSyntheticAuth": {
+      "value": "${ENABLE_SYNTHETIC_AUTH=false}"
+    },
+    "aiProjectDeployments": {
+      "value": "${AI_PROJECT_DEPLOYMENTS}"
+    },
+    "webContainerAppMode": {
+      "value": "${WEB_CONTAINER_APP_MODE}"
+    },
+    "webContainerImage": {
+      "value": "${WEB_CONTAINER_IMAGE=}"
+    },
+    "agentEndpoint": {
+      "value": "${AGENT_PERMIT_READINESS_AGENT_RESPONSES_ENDPOINT=}"
+    },
+    "entraExternalIdTenantSubdomain": {
+      "value": "${ENTRA_EXTERNAL_ID_TENANT_SUBDOMAIN=}"
+    },
+    "entraExternalIdClientId": {
+      "value": "${ENTRA_EXTERNAL_ID_CLIENT_ID=}"
+    },
+    "entraExternalIdClientSecret": {
+      "value": "${ENTRA_EXTERNAL_ID_CLIENT_SECRET=}"
+    },
+    "entraExternalIdAuthorityHost": {
+      "value": "${ENTRA_EXTERNAL_ID_AUTHORITY_HOST=}"
+    },
+    "entraExternalIdRedirectUri": {
+      "value": "${ENTRA_EXTERNAL_ID_REDIRECT_URI=}"
+    },
+    "entraExternalIdIssuer": {
+      "value": "${ENTRA_EXTERNAL_ID_ISSUER=}"
+    },
+    "entraExternalIdOrganizationId": {
+      "value": "${ENTRA_EXTERNAL_ID_ORGANIZATION_ID=}"
+    }
+  }
+}

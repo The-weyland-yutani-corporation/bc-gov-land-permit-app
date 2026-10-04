@@ -1,0 +1,75 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Azure/azure-dev/main/schemas/v1.0/azure.yaml.json
+name: permit-readiness
+
+requiredVersions:
+  azd: '>=1.35.0'
+  extensions:
+    microsoft.foundry: '>=1.0.0-beta.2'
+
+services:
+  ai-project:
+    host: azure.ai.project
+    deployments:
+      - name: gpt-5-mini
+        model:
+          format: OpenAI
+          name: gpt-5-mini
+        sku:
+          name: GlobalStandard
+          capacity: 10
+
+  permit-readiness-agent:
+    host: azure.ai.agent
+    project: apps/permit-readiness-agent
+    language: docker
+    docker:
+      path: Dockerfile
+      context: ../..
+      platform: linux/amd64
+      remoteBuild: true
+    uses:
+      - ai-project
+    kind: hosted
+    name: permit-readiness-agent
+    description:
+      Explains deterministic permit-readiness results with curated guidance.
+    protocols:
+      - protocol: responses
+        version: 2.0.0
+    env:
+      NODE_ENV: production
+      LOG_LEVEL: info
+      GUIDANCE_SEARCH_MODE: azure
+      AZURE_SEARCH_ENDPOINT: ${AZURE_SEARCH_ENDPOINT}
+      AZURE_SEARCH_INDEX_NAME: ${AZURE_SEARCH_INDEX_NAME}
+    startupCommand:
+      node --import @azure/monitor-opentelemetry/loader --import
+      ./dist/instrumentation.js --enable-source-maps dist/index.js
+    container:
+      resources:
+        cpu: '0.5'
+        memory: 1Gi
+
+  web:
+    host: containerapp
+    project: apps/web
+    language: docker
+    resourceName: ${AZURE_CONTAINER_APP_NAME}
+    docker:
+      path: Dockerfile
+      context: ../..
+      platform: linux/amd64
+      remoteBuild: true
+
+infra:
+  provider: bicep
+  path: infra
+  module: main
+
+hooks:
+  preprovision:
+    run: node scripts/infra/validate-environment.mjs
+    interactive: false
+  postdeploy:
+    run: node scripts/infra/sync-agent-endpoint.mjs
+    interactive: false

@@ -1,0 +1,126 @@
+{
+  "schemaVersion": "1.0.0",
+  "releaseId": "bc-inspired-guidance-2026-10",
+  "releaseVersion": "1.0.0",
+  "jurisdictionId": "bc-inspired-synthetic",
+  "title": "B.C.-inspired public-source guidance summaries",
+  "reviewedAt": "2026-10-03",
+  "sources": [
+    {
+      "id": "bc-demo-land-guide",
+      "version": "1.0.0",
+      "jurisdictionId": "bc-inspired-synthetic",
+      "title": "Crown land use planning summary",
+      "canonicalUrl": "https://www2.gov.bc.ca/gov/content/industry/crown-land-water/crown-land/crown-land-uses",
+      "authority": {
+        "name": "Government of British Columbia",
+        "url": "https://www2.gov.bc.ca/"
+      },
+      "content": {
+        "kind": "inline",
+        "mediaType": "text/markdown",
+        "value": "# Land coordination summary\nProjects that may use provincially managed land should confirm land status, intended use, location, access, and overlaps with other interests early. The responsible authority determines the applicable tenure or authorization path."
+      },
+      "contentHash": "sha256:d59fe3e5e6350a6e95eb3cdcc28ef827147b42aba4b264b6eb74936a53830257",
+      "effectiveFrom": "2026-10-03",
+      "reviewedAt": "2026-10-03",
+      "nextReviewAt": "2027-04-03",
+      "tags": ["crown-land", "land-tenure"],
+      "projectTypeIds": [
+        "housing-site",
+        "clean-power-connection",
+        "community-connectivity"
+      ],
+      "allowedUsage": ["grounding", "citation", "display_summary"],
+      "license": "Original concise summary with public source metadata; verify reuse terms at the canonical source",
+      "synthetic": false
+    },
+    {
+      "id": "bc-demo-water-guide",
+      "version": "1.0.0",
+      "jurisdictionId": "bc-inspired-synthetic",
+      "title": "Water authorization planning summary",
+      "canonicalUrl": "https://www2.gov.bc.ca/gov/content/environment/air-land-water/water/water-licensing-rights",
+      "authority": {
+        "name": "Government of British Columbia",
+        "url": "https://www2.gov.bc.ca/"
+      },
+      "content": {
+        "kind": "inline",
+        "mediaType": "text/markdown",
+        "value": "# Water planning summary\nWork in or near streams, wetlands, shorelines, or groundwater may require additional review. Describe the location, timing, proposed changes, and avoidance measures, then confirm current requirements with the responsible water authority."
+      },
+      "contentHash": "sha256:1f778a939f631c02ae1eb4d35faa9bbd5a7d88a250018a272dca2fcbf29c92f3",
+      "effectiveFrom": "2026-10-03",
+      "reviewedAt": "2026-10-03",
+      "nextReviewAt": "2027-04-03",
+      "tags": ["water", "streams", "shoreline"],
+      "projectTypeIds": [
+        "housing-site",
+        "clean-power-connection",
+        "community-connectivity"
+      ],
+      "allowedUsage": ["grounding", "citation", "display_summary"],
+      "license": "Original concise summary with public source metadata; verify reuse terms at the canonical source",
+      "synthetic": false
+    },
+    {
+      "id": "bc-demo-road-guide",
+      "version": "1.0.0",
+      "jurisdictionId": "bc-inspired-synthetic",
+      "title": "Provincial transportation permit planning summary",
+      "canonicalUrl": "https://www2.gov.bc.ca/gov/content/transportation/funding-engagement-permits/permits",
+      "authority": {
+        "name": "Government of British Columbia",
+        "url": "https://www2.gov.bc.ca/"
+      },
+      "content": {
+        "kind": "inline",
+        "mediaType": "text/markdown",
+        "value": "# Transportation access summary\nA new or materially changed access to a provincial transportation corridor may need review. Prepare a location plan, access purpose, traffic assumptions, drainage information, and construction details for authority confirmation."
+      },
+      "contentHash": "sha256:f670ab30b8599d02f6e7e64fb699ffb2937574317103108b9170c59adc513a6b",
+      "effectiveFrom": "2026-10-03",
+      "reviewedAt": "2026-10-03",
+      "nextReviewAt": "2027-04-03",
+      "tags": ["transportation", "road-access"],
+      "projectTypeIds": [
+        "housing-site",
+        "clean-power-connection",
+        "community-connectivity"
+      ],
+      "allowedUsage": ["grounding", "citation", "display_summary"],
+      "license": "Original concise summary with public source metadata; verify reuse terms at the canonical source",
+      "synthetic": false
+    },
+    {
+      "id": "bc-demo-corridor-guide",
+      "version": "1.0.0",
+      "jurisdictionId": "bc-inspired-synthetic",
+      "title": "Permit Connect B.C. coordination summary",
+      "canonicalUrl": "https://www2.gov.bc.ca/gov/content/industry/natural-resource-use/natural-resource-permits/permit-connect-bc",
+      "authority": {
+        "name": "Government of British Columbia",
+        "url": "https://www2.gov.bc.ca/"
+      },
+      "content": {
+        "kind": "inline",
+        "mediaType": "text/markdown",
+        "value": "# Permit coordination summary\nLand-based housing, clean-power, and connectivity projects can involve more than one authority. Start with a clear project description and map, identify land and water interactions, and verify current permits through official channels."
+      },
+      "contentHash": "sha256:f4a7af69417044ef67980d655b98a8b8b2378a860857fdfdf82f0439016349a4",
+      "effectiveFrom": "2026-10-03",
+      "reviewedAt": "2026-10-03",
+      "nextReviewAt": "2027-04-03",
+      "tags": ["permit-coordination", "connectivity", "clean-power"],
+      "projectTypeIds": [
+        "housing-site",
+        "clean-power-connection",
+        "community-connectivity"
+      ],
+      "allowedUsage": ["grounding", "citation", "display_summary"],
+      "license": "Original concise summary with public source metadata; verify reuse terms at the canonical source",
+      "synthetic": false
+    }
+  ]
+}

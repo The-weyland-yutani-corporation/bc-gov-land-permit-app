@@ -1,0 +1,36 @@
+{
+  "name": "@permit-readiness/agent",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "node --watch --enable-source-maps dist/index.js",
+    "lint": "node ../../scripts/validation/validate-package.mjs",
+    "eval:check": "node scripts/evaluation/check-results.mjs",
+    "eval:datasets": "node scripts/evaluation/generate-datasets.mjs",
+    "eval:preflight": "pnpm --filter @permit-readiness/contracts build && pnpm --filter @permit-readiness/domain build && pnpm build && node scripts/evaluation/preflight.mjs",
+    "smoke": "pnpm --filter @permit-readiness/contracts build && pnpm --filter @permit-readiness/domain build && pnpm build && node test/smoke.mjs",
+    "start": "node --import @azure/monitor-opentelemetry/loader --import ./dist/instrumentation.js --enable-source-maps dist/index.js",
+    "test": "pnpm --filter @permit-readiness/contracts build && pnpm --filter @permit-readiness/domain build && pnpm build && node --test ../../scripts/validation/package-boundary.test.mjs test/*.test.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@azure/ai-projects": "2.7.1",
+    "@azure/identity": "4.13.3",
+    "@azure/monitor-opentelemetry": "1.20.0",
+    "@opentelemetry/api": "1.9.0",
+    "@permit-readiness/contracts": "workspace:*",
+    "@permit-readiness/domain": "workspace:*",
+    "@permit-readiness/guidance-search": "workspace:*",
+    "@permit-readiness/jurisdiction-config": "workspace:*",
+    "@permit-readiness/observability": "workspace:*",
+    "openai": "6.49.0",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "^22.18.6",
+    "typescript": "catalog:",
+    "yaml": "2.9.1"
+  }
+}

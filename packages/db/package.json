@@ -1,0 +1,40 @@
+{
+  "name": "@permit-readiness/db",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "db:generate": "drizzle-kit generate --config drizzle.config.mjs",
+    "db:check": "drizzle-kit check --config drizzle.config.mjs",
+    "db:verify": "node scripts/check-postgis.mjs",
+    "migrate": "pnpm build && node dist/cli/migrate.js",
+    "initialize": "pnpm build && node dist/cli/initialize.js",
+    "seed": "pnpm build && node dist/cli/seed.js",
+    "seed:demo": "pnpm build && node dist/cli/demo-seed.js",
+    "dev": "node ../../scripts/validation/scaffold-task.mjs dev",
+    "lint": "node ../../scripts/validation/validate-package.mjs",
+    "test": "pnpm build && node --test ../../scripts/validation/package-boundary.test.mjs test/*.test.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@permit-readiness/contracts": "workspace:*",
+    "@permit-readiness/domain": "workspace:*",
+    "drizzle-orm": "^0.45.3",
+    "postgres": "^3.4.9",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "^22.18.6",
+    "drizzle-kit": "^0.31.11",
+    "typescript": "catalog:"
+  }
+}

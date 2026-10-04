@@ -1,0 +1,36 @@
+{
+  "name": "@permit-readiness/guidance-search",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "node ../../scripts/validation/scaffold-task.mjs dev",
+    "lint": "node ../../scripts/validation/validate-package.mjs",
+    "test": "pnpm --filter @permit-readiness/contracts build && pnpm build && node --test ../../scripts/validation/package-boundary.test.mjs test/*.test.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "initialize": "pnpm build && node dist/cli.js initialize",
+    "index:create": "pnpm build && node dist/cli.js create-index",
+    "ingest": "pnpm build && node dist/cli.js ingest",
+    "local:test": "pnpm build && node dist/cli.js local-test"
+  },
+  "dependencies": {
+    "@azure/ai-projects": "2.7.1",
+    "@azure/identity": "4.13.3",
+    "@azure/search-documents": "13.0.0",
+    "@permit-readiness/contracts": "workspace:*",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "^22.18.6",
+    "typescript": "catalog:"
+  }
+}
