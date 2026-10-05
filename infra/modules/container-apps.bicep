@@ -9,6 +9,7 @@ param logAnalyticsSharedKey string
 
 param registryServer string
 param webIdentityResourceId string
+param webIdentityClientId string
 param webContainerAppMode string
 param webContainerImage string
 param databaseSecretUri string
@@ -76,6 +77,10 @@ var baseEnvironmentVariables = [
   {
     name: 'HOSTNAME'
     value: '0.0.0.0'
+  }
+  {
+    name: 'AZURE_CLIENT_ID'
+    value: webIdentityClientId
   }
   {
     name: 'AUTH_MODE'

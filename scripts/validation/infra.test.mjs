@@ -8,11 +8,13 @@ test('Azure infrastructure contract is internally consistent', async () => {
 });
 
 test('Container App provisioning is explicit and traffic-neutral', async () => {
-  const [main, containerApps, parameters] = await Promise.all([
-    readFile('infra/main.bicep', 'utf8'),
-    readFile('infra/modules/container-apps.bicep', 'utf8'),
-    readFile('infra/main.parameters.json', 'utf8'),
-  ]);
+  const [main, containerApps, parameters, syncAgentEndpoint] =
+    await Promise.all([
+      readFile('infra/main.bicep', 'utf8'),
+      readFile('infra/modules/container-apps.bicep', 'utf8'),
+      readFile('infra/main.parameters.json', 'utf8'),
+      readFile('scripts/infra/sync-agent-endpoint.mjs', 'utf8'),
+    ]);
 
   assert.doesNotMatch(
     `${main}\n${containerApps}\n${parameters}`,
@@ -44,5 +46,20 @@ test('Container App provisioning is explicit and traffic-neutral', async () => {
   assert.match(
     containerApps,
     /env: concat\(baseEnvironmentVariables, agentEnvironmentVariables, externalIdEnvironmentVariables\)/,
+  );
+  assert.match(main, /webIdentityClientId: identity\.outputs\.clientId/);
+  assert.match(containerApps, /param webIdentityClientId string/);
+  assert.match(
+    containerApps,
+    /name: 'AZURE_CLIENT_ID'\s+value: webIdentityClientId/,
+  );
+  assert.match(
+    syncAgentEndpoint,
+    /webIdentityClientId = process\.env\.AZURE_CLIENT_ID/,
+  );
+  assert.match(syncAgentEndpoint, /`AZURE_CLIENT_ID=\${webIdentityClientId}`/);
+  assert.match(
+    syncAgentEndpoint,
+    /values\.get\('AZURE_CLIENT_ID'\) === webIdentityClientId/,
   );
 });

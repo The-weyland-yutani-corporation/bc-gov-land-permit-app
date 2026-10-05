@@ -7,6 +7,7 @@ const endpointEntry = Object.entries(process.env).find(
 );
 const resourceGroup = process.env.AZURE_RESOURCE_GROUP;
 const containerApp = process.env.AZURE_CONTAINER_APP_NAME;
+const webIdentityClientId = process.env.AZURE_CLIENT_ID?.trim();
 const profile = process.env.AZURE_ENV_PROFILE ?? 'dev';
 
 if (!endpointEntry || !resourceGroup || !containerApp) {
@@ -15,6 +16,17 @@ if (!endpointEntry || !resourceGroup || !containerApp) {
   if (profile === 'prod') throw new Error(message);
   console.warn(message);
   process.exit(0);
+}
+
+if (
+  !webIdentityClientId ||
+  !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    webIdentityClientId,
+  )
+) {
+  throw new Error(
+    'AZURE_CLIENT_ID must contain the web user-assigned managed identity client ID before synchronizing the Container App.',
+  );
 }
 
 const endpoint = endpointEntry[1];
@@ -52,9 +64,12 @@ const values = new Map(
 );
 if (
   values.get('PERMIT_AGENT_MODE') === 'remote' &&
-  values.get('PERMIT_AGENT_ENDPOINT') === endpoint
+  values.get('PERMIT_AGENT_ENDPOINT') === endpoint &&
+  values.get('AZURE_CLIENT_ID') === webIdentityClientId
 ) {
-  console.log('Container App hosted-agent endpoint is already synchronized.');
+  console.log(
+    'Container App hosted-agent endpoint and managed identity are already synchronized.',
+  );
   process.exit(0);
 }
 
@@ -68,6 +83,7 @@ const result = spawnSync(
     '--resource-group',
     resourceGroup,
     '--set-env-vars',
+    `AZURE_CLIENT_ID=${webIdentityClientId}`,
     'PERMIT_AGENT_MODE=remote',
     `PERMIT_AGENT_ENDPOINT=${endpoint}`,
     '--only-show-errors',
@@ -82,4 +98,6 @@ if (result.status !== 0) {
   );
 }
 
-console.log('Container App hosted-agent endpoint synchronized.');
+console.log(
+  'Container App hosted-agent endpoint and managed identity synchronized.',
+);
