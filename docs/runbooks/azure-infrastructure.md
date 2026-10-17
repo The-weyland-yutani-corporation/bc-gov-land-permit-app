@@ -69,6 +69,15 @@ Production release automation fixes `WEB_CONTAINER_APP_MODE=existing`.
 Provisioning therefore references the current Container App for outputs but does
 not submit its template, image, environment, or ingress traffic to ARM.
 
+The web Container App has a user-assigned managed identity. Bicep injects that
+identity's client ID as `AZURE_CLIENT_ID`, allowing Azure SDK
+`DefaultAzureCredential` to select the correct identity for server-side Foundry
+and other Azure calls. This value is an identity selector, not a credential or
+secret. The `postdeploy` synchronization hook also applies the selector to
+pre-existing Container Apps while it updates the hosted-agent endpoint, so
+environments created before this setting was introduced are migrated on their
+next deployment.
+
 ## Provision and release
 
 An authorized operator may run `azd provision`; Foundry azd commands must use
@@ -98,15 +107,18 @@ After provisioning:
 6. pin both public routes to those stable versions and read them back;
 7. optionally provision reviewed infrastructure in `existing` mode and verify
    both stable routes again;
-8. deploy the hosted agent and web services with `azd deploy`;
-9. discover the newly created versions in production by comparing predeploy and
-   postdeploy production state;
-10. invoke the exact production agent candidate with `--version`, check the
+8. run the postdeploy synchronization once before the candidate snapshot to
+   migrate `AZURE_CLIENT_ID` and the hosted-agent endpoint on older Container
+   Apps, then verify traffic still targets the stable revision;
+9. deploy the hosted agent and web services with `azd deploy`;
+10. discover the newly created versions in production by comparing predeploy and
+    postdeploy production state;
+11. invoke the exact production agent candidate with `--version`, check the
     candidate Container App revision FQDN, and run regression evaluation with
     `agent.version` pinned to the same production version;
-11. after protected approval, route both public endpoints to the candidate and
+12. after protected approval, route both public endpoints to the candidate and
     read them back;
-12. verify correlated web, agent, model, Search, and database telemetry.
+13. verify correlated web, agent, model, Search, and database telemetry.
 
 Do not move initialization after deployment or health checks. A deployment
 failure must leave traffic on the prior revision rather than expose a candidate

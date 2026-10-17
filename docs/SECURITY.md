@@ -6,6 +6,9 @@ invariants are:
 - authenticate application APIs and enforce tenant/project ownership
 - keep Foundry and database access server-side
 - use managed identity and least privilege where supported
+- inject the web user-assigned identity client ID as `AZURE_CLIENT_ID` so
+  `DefaultAzureCredential` selects that identity; never substitute an agent,
+  project, or CI identity
 - do not commit secrets, credentials, personal data, or generated cloud state
 - minimize context sent to the agent and telemetry captured by default
 - validate external, model, retrieval, and tool inputs

@@ -8,6 +8,7 @@ import {
   type Project,
   type ProjectIntake,
 } from '@permit-readiness/contracts';
+import { z } from 'zod';
 import { demoConfiguration, getDemoQuestionSet } from './demo-config';
 
 export interface NavigatorContext {
@@ -37,6 +38,31 @@ export interface HostedPermitReadinessAgent extends PermitReadinessAgent {
 
 interface TokenCredential {
   getToken(scope: string): Promise<{ token: string } | null>;
+}
+
+type AzureCredentialEnvironment = Readonly<{
+  AZURE_CLIENT_ID?: string;
+}>;
+
+export function defaultAzureCredentialOptions(
+  environment: AzureCredentialEnvironment = {
+    AZURE_CLIENT_ID: process.env.AZURE_CLIENT_ID,
+  },
+): { managedIdentityClientId?: string } {
+  const clientId = environment.AZURE_CLIENT_ID?.trim();
+  if (!clientId) return {};
+
+  return {
+    managedIdentityClientId: z.string().uuid().parse(clientId),
+  };
+}
+
+export function createHostedAgentCredential(
+  environment: AzureCredentialEnvironment = {
+    AZURE_CLIENT_ID: process.env.AZURE_CLIENT_ID,
+  },
+): TokenCredential {
+  return new DefaultAzureCredential(defaultAzureCredentialOptions(environment));
 }
 
 export class DeterministicDemoAgent implements PermitReadinessAgent {
@@ -73,7 +99,7 @@ export class FoundryResponsesPermitReadinessAgent
 
   constructor(
     readonly configuration: HostedAgentConfiguration,
-    private readonly credential: TokenCredential = new DefaultAzureCredential(),
+    private readonly credential: TokenCredential = createHostedAgentCredential(),
     private readonly fetchImplementation: typeof fetch = fetch,
   ) {}
 

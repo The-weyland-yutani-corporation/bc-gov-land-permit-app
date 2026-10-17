@@ -312,6 +312,15 @@ jobs:
           eval "$(AZURE_DEV_USER_AGENT=microsoft_foundry_skill azd env get-values)"
           az containerapp ingress traffic show --name "$AZURE_CONTAINER_APP_NAME" --resource-group "$AZURE_RESOURCE_GROUP" --output json > artifacts/production/pinned-app-traffic.json
           node scripts/ci/verify-release.mjs app-route artifacts/production/pinned-app-traffic.json "$STABLE_APP_REVISION"
+      - name: Synchronize web identity before candidate snapshot
+        env:
+          STABLE_AGENT_VERSION:
+            ${{ steps.previous.outputs.stable_agent_version }}
+          STABLE_APP_REVISION: ${{ steps.previous.outputs.stable_app_revision }}
+        run: |
+          eval "$(AZURE_DEV_USER_AGENT=microsoft_foundry_skill azd env get-values)"
+          node scripts/infra/sync-agent-endpoint.mjs
+          bash scripts/ci/verify-stable-routes.sh "$STABLE_AGENT_VERSION" "$STABLE_APP_REVISION" postidentity
       - name: Snapshot production versions immediately before deployment
         run: |
           eval "$(AZURE_DEV_USER_AGENT=microsoft_foundry_skill azd env get-values)"

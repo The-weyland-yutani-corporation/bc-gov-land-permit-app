@@ -273,6 +273,7 @@ module containerApps './modules/container-apps.bicep' = {
     logAnalyticsSharedKey: monitoring.outputs.logAnalyticsSharedKey
     registryServer: registry.outputs.loginServer
     webIdentityResourceId: identity.outputs.resourceId
+    webIdentityClientId: identity.outputs.clientId
     webContainerAppMode: webContainerAppMode
     webContainerImage: validatedWebContainerImage
     databaseSecretUri: keyVault.outputs.databaseUrlSecretUri

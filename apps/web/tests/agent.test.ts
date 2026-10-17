@@ -1,4 +1,5 @@
 import {
+  defaultAzureCredentialOptions,
   DeterministicDemoAgent,
   FoundryResponsesPermitReadinessAgent,
   type NavigatorContext,
@@ -76,6 +77,20 @@ function context(): NavigatorContext {
 }
 
 describe('permit readiness agent adapters', () => {
+  it('selects the deployed web user-assigned managed identity', () => {
+    expect(
+      defaultAzureCredentialOptions({
+        AZURE_CLIENT_ID: '11111111-1111-4111-8111-111111111111',
+      }),
+    ).toEqual({
+      managedIdentityClientId: '11111111-1111-4111-8111-111111111111',
+    });
+    expect(defaultAzureCredentialOptions({})).toEqual({});
+    expect(() =>
+      defaultAzureCredentialOptions({ AZURE_CLIENT_ID: 'not-a-client-id' }),
+    ).toThrow();
+  });
+
   it('preserves the deterministic local demo adapter', async () => {
     const result = await new DeterministicDemoAgent().respond(context());
     expect(result.content).toMatch(

@@ -292,6 +292,23 @@ test('deployment workflows use OIDC, protected environments, and gates', async (
   );
   assert.ok(
     production.source.indexOf(
+      'Synchronize web identity before candidate snapshot',
+    ) <
+      production.source.indexOf(
+        'Snapshot production versions immediately before deployment',
+      ),
+  );
+  assert.ok(
+    production.source.indexOf(
+      'Synchronize web identity before candidate snapshot',
+    ) < production.source.indexOf('azd deploy --all'),
+  );
+  assert.match(
+    production.source,
+    /Synchronize web identity before candidate snapshot[\s\S]*sync-agent-endpoint\.mjs[\s\S]*verify-stable-routes\.sh/,
+  );
+  assert.ok(
+    production.source.indexOf(
       'Pin stable public routes before candidate provisioning',
     ) < production.source.indexOf('azd provision --no-prompt'),
   );
