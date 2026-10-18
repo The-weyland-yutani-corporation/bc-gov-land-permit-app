@@ -10,6 +10,45 @@
    network changes, or name replacement stop the deployment.
 5. Confirm External ID and B.C. map prerequisites for production.
 
+## Choose a deployment path
+
+1. **Applicant demonstration only?** Use the
+   [local walkthrough](customer-demo.md#local-setup-and-reset). No Azure
+   resources are required, but local operation is not cloud integration
+   evidence.
+2. **Azure development demonstration?** Obtain a subscription/environment owner,
+   approved region and model quota, cost approval, identities/RBAC, and the
+   development VNet-connected runner described below. Review synthetic-auth
+   approval explicitly; do not expose an unreviewed environment.
+3. **Production candidate?** Also establish External ID registration and
+   database membership onboarding, production runner/environment protections,
+   privacy and records policies, accessibility/security review, operating
+   ownership, and a verified stable release/rollback target. A successful
+   deployment does not replace those approvals.
+
+Use `infra/README.md`, `infra/RBAC.md`, and the environment tables below for the
+full prerequisites. Do not advertise an unverified public demo URL.
+
+### Cost and evidence handoff
+
+Estimate costs for the selected region, SKU, capacity, retention, and expected
+usage before provision: PostgreSQL, Search, Container Apps, Foundry model tokens
+and hosted compute, registry, Maps, storage, logs, and network egress.
+Scale-to-zero for the web does not make the full environment free. Set budgets,
+quota alerts, an expiry date, and a named teardown owner. No fixed monthly
+estimate is asserted.
+
+For a field demonstration, record the tested source commit, agent/model
+versions, configuration/rule/guidance releases, migrations, successful
+browser/health checks, version-pinned cloud evaluation results, expected cost,
+and rollback evidence. Keep secrets and raw sensitive inputs out of that
+evidence. Local preflight is not a substitute for invoking and evaluating the
+deployed candidate.
+
+After the event, apply the teardown procedure below only to project-owned
+resources. Separately review External ID, DNS, federated credentials, retained
+artifacts, and any resources whose retention/purge settings prevent deletion.
+
 ## GitHub environment bootstrap
 
 The deployment workflows create a local azd environment and set every

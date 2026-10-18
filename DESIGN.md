@@ -13,10 +13,10 @@ Program, and Permit Connect B.C. service structure. All copy and scenarios are
 original or synthetic. Visual similarity never implies official government
 status.
 
-The current dependency-free HTML/CSS proof allows the design system to build and
-validate before application flows exist. `apps/web/tailwind.config.ts` maps the
-same semantic tokens for the planned Next.js/Tailwind layer. Framework work must
-preserve this anatomy instead of reverting to starter-kit defaults.
+The original dependency-free HTML/CSS proof establishes the design anatomy. The
+Next.js applicant journey preserves that reference alongside the semantic tokens
+mapped in `apps/web/tailwind.config.ts`. Framework work must preserve this
+anatomy instead of reverting to starter-kit defaults.
 
 ### Anti-goals
 

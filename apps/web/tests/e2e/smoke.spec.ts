@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { writeFile } from 'node:fs/promises';
 
 async function answerBoolean(
   page: Page,
@@ -15,6 +16,20 @@ async function answerBoolean(
 test('local applicant completes the degraded readiness journey', async ({
   page,
 }, testInfo) => {
+  const captureAssets = process.env.PERMIT_CAPTURE_ASSETS === 'true';
+  const startedAt = Date.now();
+  const captions: { start: number; text: string }[] = [];
+  const capture = async (name: string, text: string) => {
+    if (!captureAssets) return;
+    captions.push({ start: Date.now() - startedAt, text });
+    await page.screenshot({
+      path: testInfo.outputPath(`${name}.png`),
+      fullPage: true,
+      animations: 'disabled',
+    });
+    await page.waitForTimeout(1500);
+  };
+
   await page.goto('/');
   await expect(
     page.getByText('Demonstration — not an official government service'),
@@ -26,6 +41,10 @@ test('local applicant completes the degraded readiness journey', async ({
   ).toBeVisible();
   await expect(page.getByRole('heading', { level: 1 })).toContainText(
     'Understand what your land-based project may need',
+  );
+  await capture(
+    'landing',
+    'Local demonstration, not an official government service. No live Azure integrations are shown.',
   );
   await page.keyboard.press('Tab');
   await expect(
@@ -75,6 +94,10 @@ test('local applicant completes the degraded readiness journey', async ({
     'Does the project include a linear utility or communications corridor?',
     'Yes',
   );
+  await capture(
+    'intake',
+    'The fictional connectivity project keeps water information Unknown. Rules, not AI, decide trigger results.',
+  );
   await page.getByRole('button', { name: 'Continue' }).click();
 
   await expect(page.getByText('Interactive map unavailable.')).toBeVisible();
@@ -96,6 +119,10 @@ test('local applicant completes the degraded readiness journey', async ({
     .fill('Approximate synthetic corridor near Pine Ridge.');
   await page.getByRole('button', { name: 'Confirm this location' }).click();
   await expect(page.getByText('Location confirmed.')).toBeVisible();
+  await capture(
+    'location',
+    'The non-map location fallback uses illustrative coordinates. This is not parcel or survey analysis.',
+  );
   await page.getByRole('button', { name: 'Continue' }).click();
   await page.getByRole('button', { name: 'Save and review project' }).click();
 
@@ -120,6 +147,10 @@ test('local applicant completes the degraded readiness journey', async ({
   await expect(
     page.getByText(/Answer what you know, or choose “Unknown”/i),
   ).toBeVisible();
+  await capture(
+    'navigator',
+    'The local navigator explains saved facts. It cannot decide which permits legally apply.',
+  );
 
   await page
     .getByRole('navigation', { name: 'Project sections' })
@@ -138,6 +169,10 @@ test('local applicant completes the degraded readiness journey', async ({
   await expect(
     page.getByText(/not an application, approval, legal opinion/i),
   ).toBeVisible();
+  await capture(
+    'report',
+    'The readiness report shows information gaps and illustrative sources. Confirm requirements with the authority.',
+  );
 
   await page
     .getByRole('navigation', { name: 'Project sections' })
@@ -150,6 +185,10 @@ test('local applicant completes the degraded readiness journey', async ({
   await expect(firstTask).toBeVisible();
   await firstTask.getByRole('button', { name: 'Mark complete' }).click();
   await expect(firstTask.getByText('completed', { exact: true })).toBeVisible();
+  await capture(
+    'tasks',
+    'Preparation tasks come from the accepted report. Completing a task does not mean a permit is approved.',
+  );
 
   const layout = await page.evaluate(() => ({
     documentWidth: document.documentElement.scrollWidth,
@@ -171,4 +210,21 @@ test('local applicant completes the degraded readiness journey', async ({
         .filter((button) => button.height > 0 && button.height < 44),
     );
   expect(undersizedButtons).toEqual([]);
+  if (captureAssets) {
+    const timestamp = (milliseconds: number) =>
+      new Date(milliseconds).toISOString().slice(11, 23);
+    const endedAt = Date.now() - startedAt;
+    const cues = captions.map(
+      (caption, index) =>
+        `${index + 1}\n${timestamp(caption.start)} --> ${timestamp(captions[index + 1]?.start ?? endedAt)}\n${caption.text}\n`,
+    );
+    await writeFile(
+      testInfo.outputPath('walkthrough.vtt'),
+      `WEBVTT\n\n${cues.join('\n')}`,
+    );
+    await writeFile(
+      testInfo.outputPath('walkthrough.txt'),
+      `Permit Readiness Navigator — automated local walkthrough\nSynthetic data only. No live Azure evidence.\n\n${captions.map((caption) => caption.text).join('\n\n')}\n`,
+    );
+  }
 });

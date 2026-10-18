@@ -67,3 +67,45 @@ deployment authoritative or production-ready.
   degraded states use the same semantic anatomy.
 - Reports retain exact configuration, rule, guidance, agent, and evidence
   versions and continue to state their non-binding limits.
+
+## Reusability and handoff inventory
+
+| Reusable foundation                                | Must be customized or approved                                   |
+| -------------------------------------------------- | ---------------------------------------------------------------- |
+| Structured intake → review → report → tasks        | Service language, enabled project types, questions               |
+| Deterministic triggers, gaps, sequence, provenance | Jurisdiction-owned rules, expected outcomes, effective dates     |
+| Typed agent tools and bounded explanation          | Approved model deployment, retrieval sources, evaluation cases   |
+| Immutable configuration and semantic theme         | Authorities, source rights/currency, approved identity artwork   |
+| Repository ports and tenant constraints            | Identity/membership onboarding, retention, operational ownership |
+| Bicep, OIDC, protected promotion, rollback         | Subscription, region, quota, networking, runners, cost approval  |
+
+The exports `genericPublicSectorPreset` and `bcInspiredSyntheticPreset` in
+`packages/jurisdiction-config/src/presets.ts` are example templates, not legally
+complete jurisdiction packs. The current web demo selects the B.C.-inspired
+preset in `apps/web/src/lib/demo-config.ts`; a second preset is not a runtime
+selector UI. Use a new immutable release and update the reviewed
+loader/selection boundary. Do not silently change an existing report's pinned
+release.
+
+For a jurisdiction-release template, use the preset shape and validation schema
+in `packages/jurisdiction-config`. For a guidance-source template, use the
+manifest contract and examples in `packages/guidance-search`. Preserve all
+source hashes, licensing, approval, and currency requirements rather than
+copying unreviewed web text. The
+[pilot brief](../runbooks/customer-demo.md#workshop-and-pilot-brief-template)
+and canonical scenario provide customer discovery and sample-data templates.
+
+### Anonymization and redistribution
+
+Create synthetic public scenarios from scratch; renaming a real applicant is not
+adequate anonymization. Do not publish customer prompts, reports, precise
+project geometry, conversations, raw diagnostic traces, or generated cloud
+state. Obtain rights-holder approval for the repository license and third-party
+guidance, branding, fonts, and asset notices before redistribution.
+
+Package reusable contracts, configuration examples, workflows, synthetic
+expected results, architecture patterns, and operating docs—not
+customer-specific forks. Before expanding positioning beyond public-sector
+permitting, demonstrate and evaluate a second domain. Have an independent SE/CSA
+perform a clean setup and adaptation, recording unclear steps and resulting
+fixes.

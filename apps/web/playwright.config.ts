@@ -10,6 +10,10 @@ export default defineConfig({
   use: {
     baseURL: 'http://127.0.0.1:3000',
     trace: 'retain-on-failure',
+    video:
+      process.env.PERMIT_CAPTURE_ASSETS === 'true'
+        ? { mode: 'on', size: { width: 1280, height: 960 } }
+        : 'off',
   },
   webServer: {
     command: 'pnpm exec next dev --hostname 127.0.0.1 --port 3000',

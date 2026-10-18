@@ -3,9 +3,14 @@
 ## Status and scope
 
 This document defines the target architecture and binding dependency and trust
-boundaries for the reference implementation. It is intentionally more concrete
-than the current scaffold. Implementation details may evolve through accepted
-ADRs, but changes must preserve the product truths in `PRODUCT.md`.
+boundaries for the reference implementation. The repository includes a local
+applicant journey and Azure deployment definitions; the topology below is not
+proof of a deployed environment. Implementation details may evolve through
+accepted ADRs, but changes must preserve the product truths in `PRODUCT.md`.
+
+For a simplified local/cloud rendering and verification scope, see
+[`docs/assets/architecture.svg`](docs/assets/architecture.svg) and
+[`docs/assets/evidence.yaml`](docs/assets/evidence.yaml).
 
 ## System context
 

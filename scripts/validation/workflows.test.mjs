@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
-import { readFile, readdir } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import { access, readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import test from 'node:test';
 import { parseDocument } from 'yaml';
@@ -130,6 +131,43 @@ test('pull request CI contains every release gate', async () => {
   const { source, workflow } = await loadWorkflow('ci.yml');
   assert.ok(workflow.on.pull_request);
   assert.ok(workflow.on.push.branches.includes('main'));
+  for (const event of ['pull_request', 'push']) {
+    for (const handoffPath of ['*.md', 'accelerator.yaml', 'docs/**']) {
+      assert.ok(
+        workflow.on[event].paths.includes(handoffPath),
+        `${event} must validate ${handoffPath} changes`,
+      );
+    }
+  }
+  const browserSmoke = findStep(workflow, 'browser-smoke', 'Run browser smoke');
+  assert.ok(browserSmoke.run.indexOf('pnpm build') >= 0);
+  assert.ok(
+    browserSmoke.run.indexOf('pnpm build') <
+      browserSmoke.run.indexOf('test:e2e'),
+    'fresh-checkout browser smoke must build workspace outputs first',
+  );
+  const qualitySteps = workflow.jobs.quality.steps;
+  assert.ok(
+    qualitySteps.findIndex((step) => step.name === 'Build') <
+      qualitySteps.findIndex((step) => step.name === 'Type-check'),
+    'fresh-checkout type checks require shared-package build outputs',
+  );
+  const bicepBuild = findStep(
+    workflow,
+    'infrastructure',
+    'Build Bicep and parameter files',
+  );
+  for (const profile of ['dev', 'prod']) {
+    const parameters = await readFile(
+      path.resolve('infra', 'parameters', `${profile}.bicepparam`),
+      'utf8',
+    );
+    for (const [, name] of parameters.matchAll(
+      /readEnvironmentVariable\('([A-Z0-9_]+)'\)/g,
+    )) {
+      assert.ok(bicepBuild.env[name], `Bicep CI requires a synthetic ${name}`);
+    }
+  }
   for (const expected of [
     'pnpm install --frozen-lockfile',
     'pnpm format:check',
@@ -146,6 +184,68 @@ test('pull request CI contains every release gate', async () => {
     'test-results',
   ]) {
     assert.match(source, new RegExp(expected.replaceAll('/', '\\/')));
+  }
+});
+
+test('accelerator draft keeps publication gates and handoff paths explicit', async () => {
+  const document = parseDocument(await readFile('accelerator.yaml', 'utf8'));
+  assert.deepEqual(document.errors, []);
+  const metadata = document.toJS();
+  assert.equal(metadata.id, 'permit-readiness-navigator');
+  assert.equal(metadata.readiness.catalog_schema_verified, false);
+  assert.equal(metadata.license, null);
+  assert.deepEqual(metadata.maintainers, []);
+  assert.equal(
+    metadata.experience_modes.local.cloud_credentials_required,
+    false,
+  );
+  assert.equal(metadata.experience_modes.azure.cost_approval_required, true);
+  assert.ok(
+    metadata.limitations.includes(
+      'Demonstration, not an official government service',
+    ),
+  );
+  const paths = [
+    ...Object.values(metadata.documentation),
+    metadata.readiness.evidence,
+    metadata.readiness.publication_checklist,
+    ...Object.values(metadata.assets).flat(),
+  ].filter((value) => typeof value === 'string');
+  for (const relativePath of paths) {
+    assert.ok(!path.isAbsolute(relativePath) && !relativePath.includes('..'));
+    await access(path.resolve(relativePath.split('#')[0]));
+  }
+  const evidence = parseDocument(
+    await readFile(metadata.readiness.evidence, 'utf8'),
+  );
+  assert.deepEqual(evidence.errors, []);
+  const capture = evidence.toJS().assets.capture;
+  assert.match(capture.source_revision, /^[0-9a-f]{40}$/);
+  const assets = Object.values(metadata.assets).flat();
+  for (const asset of assets) {
+    const expectedHash = capture.sha256[asset];
+    assert.match(expectedHash, /^[0-9a-f]{64}$/, `${asset} needs provenance`);
+    const actualHash = createHash('sha256')
+      .update(await readFile(asset))
+      .digest('hex');
+    assert.equal(
+      actualHash,
+      expectedHash,
+      `${asset} must match its capture record`,
+    );
+  }
+});
+
+test('public lockfile preserves registry-independent integrity checks', async () => {
+  const document = parseDocument(await readFile('pnpm-lock.yaml', 'utf8'));
+  assert.deepEqual(document.errors, []);
+  for (const [name, entry] of Object.entries(document.toJS().packages)) {
+    assert.ok(entry.resolution.integrity, `${name} must retain integrity`);
+    assert.equal(
+      entry.resolution.tarball,
+      undefined,
+      `${name} must not pin a private mirror tarball URL`,
+    );
   }
 });
 

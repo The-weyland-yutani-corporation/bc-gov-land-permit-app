@@ -1,0 +1,95 @@
+# Schema-neutral draft: catalog access/schema and publication approvals are pending.
+id: permit-readiness-navigator
+name: Permit Readiness Navigator
+summary: >-
+  Help public-sector applicants prepare project information, understand possible
+  permit requirements, and identify next actions.
+description: >-
+  Structured intake, location context, deterministic versioned rules, and a
+  bounded Microsoft Foundry-hosted navigator produce explainable, non-binding
+  readiness reports and preparation tasks. Includes a credential-free local
+  demonstration and Azure deployment infrastructure.
+repository: https://github.com/The-weyland-yutani-corporation/bc-gov-land-permit-app
+demo_url: null
+release_ref: null
+license: null
+maintainers: []
+support_url: https://github.com/The-weyland-yutani-corporation/bc-gov-land-permit-app/issues
+security_reporting_url: null
+industry:
+  - Government
+customer_scope: Reusable public-sector reference; no government endorsement
+personas:
+  - Public-service product owner
+  - Solution architect
+  - Software engineer
+end_users:
+  - Applicants planning land-based projects
+use_cases:
+  - Applicant preparation
+  - Explainable permit-readiness guidance
+  - Structured public-service intake
+technologies:
+  - TypeScript
+  - Next.js
+  - PostgreSQL
+  - PostGIS
+  - Microsoft Foundry
+  - Azure AI Search
+  - Azure Container Apps
+  - Microsoft Entra External ID
+  - Azure Maps
+  - Azure Developer CLI
+  - Bicep
+experience_modes:
+  local:
+    cloud_credentials_required: false
+    identity: Explicit demo identity
+    persistence: Process-memory repository
+    navigator: Deterministic local adapter
+    location: Coordinate or GeoJSON fallback
+  azure:
+    authorized_environment_required: true
+    cost_approval_required: true
+    deployment_evidence_url: null
+    evaluation_evidence_url: null
+readiness:
+  assessed_stage: Demo-ready candidate
+  target_stage: Catalog-ready
+  catalog_schema_verified: false
+  evidence: docs/assets/evidence.yaml
+  publication_checklist: docs/runbooks/customer-demo.md#publication-checklist
+documentation:
+  overview: README.md
+  product: PRODUCT.md
+  architecture: ARCHITECTURE.md
+  demo: docs/runbooks/customer-demo.md
+  adaptation: docs/design-docs/adapting-the-reference.md
+  deployment: docs/runbooks/azure-infrastructure.md
+  evaluations: docs/runbooks/foundry-evaluations.md
+  security: docs/SECURITY.md
+assets:
+  thumbnail: docs/assets/landing.png
+  screenshots:
+    - docs/assets/landing.png
+    - docs/assets/intake.png
+    - docs/assets/location.png
+    - docs/assets/report.png
+    - docs/assets/tasks.png
+    - docs/assets/mobile-report.png
+  architecture: docs/assets/architecture.svg
+  walkthrough_video: docs/assets/walkthrough.webm
+  captions: docs/assets/walkthrough.vtt
+  transcript: docs/assets/walkthrough.txt
+  player: docs/assets/walkthrough.html
+engagement:
+  motion: Discovery workshop followed by a bounded pilot
+  starting_scope: One project type and one reviewed jurisdiction release
+  outcome: Better-prepared enquiries and explicit next actions
+limitations:
+  - Demonstration, not an official government service
+  - Not legal advice or a binding permitting determination
+  - Does not submit, approve, or deny applications
+  - Sample rules, authorities, guidance, and geography are illustrative
+  - Local mode does not demonstrate live Azure integrations
+  - Production adoption requires jurisdiction-specific approvals

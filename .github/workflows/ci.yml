@@ -4,6 +4,8 @@ on:
   pull_request:
     paths:
       - '.github/**'
+      - '*.md'
+      - 'accelerator.yaml'
       - 'apps/**'
       - 'docs/**'
       - 'infra/**'
@@ -20,6 +22,8 @@ on:
       - main
     paths:
       - '.github/**'
+      - '*.md'
+      - 'accelerator.yaml'
       - 'apps/**'
       - 'docs/**'
       - 'infra/**'
@@ -60,12 +64,12 @@ jobs:
         run: pnpm format:check
       - name: Lint
         run: pnpm lint
+      - name: Build
+        run: pnpm build
       - name: Type-check
         run: pnpm typecheck
       - name: Test
         run: pnpm test
-      - name: Build
-        run: pnpm build
       - name: Check database migrations
         run: pnpm db:check
       - name: Preflight Foundry evaluations
@@ -92,11 +96,16 @@ jobs:
       - name: Build Bicep and parameter files
         env:
           AZURE_POSTGRES_ADMIN_PASSWORD: validation-only-not-a-secret
+          AUTH_SESSION_SECRET: validation-only-not-a-secret-32-characters
+          ENABLE_SYNTHETIC_AUTH: 'true'
+          WEB_CONTAINER_APP_MODE: existing
           ENTRA_EXTERNAL_ID_TENANT_SUBDOMAIN: validation
           ENTRA_EXTERNAL_ID_CLIENT_ID: 00000000-0000-0000-0000-000000000000
           ENTRA_EXTERNAL_ID_CLIENT_SECRET: validation-only-not-a-secret
           ENTRA_EXTERNAL_ID_AUTHORITY_HOST: https://validation.ciamlogin.com
           ENTRA_EXTERNAL_ID_REDIRECT_URI: https://example.invalid/auth/callback
+          ENTRA_EXTERNAL_ID_ISSUER: https://validation.ciamlogin.com/00000000-0000-0000-0000-000000000000/v2.0
+          ENTRA_EXTERNAL_ID_ORGANIZATION_ID: 00000000-0000-0000-0000-000000000000
         run: |
           az bicep build --file infra/main.bicep --stdout > /dev/null
           az bicep build-params --file infra/parameters/dev.bicepparam --stdout > /dev/null
@@ -151,7 +160,9 @@ jobs:
           pnpm --filter @permit-readiness/web exec playwright install
           --with-deps chromium
       - name: Run browser smoke
-        run: pnpm --filter @permit-readiness/web test:e2e
+        run: |
+          pnpm build
+          pnpm --filter @permit-readiness/web test:e2e
       - name: Upload browser failure artifacts
         if: failure()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
