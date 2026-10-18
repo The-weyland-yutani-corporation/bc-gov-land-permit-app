@@ -1,7 +1,10 @@
 build: Permit Readiness Navigator
 assessment_date: '2026-10-18'
 scope: Synthetic local demonstration; not cloud or catalog certification
-source_revision: ccbcd0d5aa109c6478d82e1033701b212b15a6e0
+source_revision: 8eb538e378c645035defe4e6ace4b53f14b0f381
+revision_note:
+  Evidence-only finalization follows this source revision; media has its own
+  capture revision below
 environment:
   node: v22.23.3
   pnpm: 10.17.1
@@ -115,8 +118,11 @@ checks:
       - GHSA-mcj8-r9mp-w47p
       - GHSA-cjq9-62q9-8jv4
   codeql:
-    status: passed
-    result: 0 alerts in actions and javascript
+    status: partial
+    earlier_run: 0 alerts in actions and javascript
+    final_run:
+      Actions completed with 0 alerts; JavaScript did not finish before timeout
+    note: Final validation is incomplete; no repeat scan requested after timeout
   automated_code_review:
     status: unavailable
     note: Review backend model unavailable; not counted as a completed review
