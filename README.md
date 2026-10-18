@@ -81,11 +81,14 @@ persistence is deployed or working.
 ```sh
 corepack enable
 corepack pnpm install --frozen-lockfile
+corepack pnpm build
 corepack pnpm --filter @permit-readiness/web dev
 ```
 
 Open http://localhost:3000 and select **Start a demonstration project**, then
-**Continue as demo applicant**. Use only fictional project information.
+**Continue as demo applicant**. Use only fictional project information. The
+initial build creates shared-package outputs needed by the web server;
+installation alone does not build the database package.
 
 The minimum local journey needs no database, map key, Azure credentials, or
 Foundry deployment. **Do not copy `.env.example` for this path**: its
@@ -142,7 +145,7 @@ language. Configuration alone does not establish legal or production readiness.
 | Command               | Purpose                                                         |
 | --------------------- | --------------------------------------------------------------- |
 | `pnpm dev`            | Run development tasks for every workspace                       |
-| `pnpm build`          | Compile every workspace to its ignored `dist` directory         |
+| `pnpm build`          | Build applications and shared workspace packages                |
 | `pnpm db:check`       | Validate Drizzle migration history                              |
 | `pnpm db:migrate`     | Apply PostgreSQL/PostGIS migrations                             |
 | `pnpm db:verify`      | Verify that PostGIS is available after migration                |
@@ -211,6 +214,10 @@ This is a **demo-ready candidate**, not a claim of catalog acceptance or
 production readiness. [accelerator.yaml](accelerator.yaml) is a schema-neutral
 draft; unresolved publication gates are tracked in the
 [readiness checklist](docs/runbooks/customer-demo.md#publication-checklist).
+
+The dependency audit found existing advisories, including high-severity
+findings; see [verification scope](docs/assets/evidence.yaml). This change does
+not upgrade dependency versions or assert security clearance for publication.
 
 For non-sensitive questions, use this repository's
 [GitHub Issues](https://github.com/The-weyland-yutani-corporation/bc-gov-land-permit-app/issues).

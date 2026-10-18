@@ -1,7 +1,7 @@
 build: Permit Readiness Navigator
 assessment_date: '2026-10-18'
 scope: Synthetic local demonstration; not cloud or catalog certification
-source_revision: null
+source_revision: 0e10869cda5b2db71bee3a5019a7a8eae1666734
 environment:
   node: v22.23.3
   pnpm: 10.17.1
@@ -16,24 +16,57 @@ checks:
     status: pending
     command: corepack pnpm validate
   browser_smoke:
-    status: pending
+    status: passed
     command: corepack pnpm --filter @permit-readiness/web test:e2e
+    result: 2 passed; desktop Chromium and Pixel 5 mobile Chromium
+    capture_enabled: true
   evaluation_preflight:
-    status: pending
+    status: passed
     command: corepack pnpm --filter @permit-readiness/agent eval:preflight
+    result: 5 smoke and 12 regression cases; local only
+  migration_history:
+    status: passed
+    command: corepack pnpm db:check
+    note: No live database migration or integration test was run
+  guidance_local:
+    status: passed
+    command: corepack pnpm guidance:local
   secret_scan:
-    status: pending
+    status: passed
+    scope: Changed handoff files and synthetic assets; not full Git history
   dependency_audit:
-    status: pending
+    status: findings
+    command: corepack pnpm audit --json
+    note: >-
+      Existing package versions were preserved. Findings require owner triage
+      before publication; no dependency security clearance is asserted.
+    counts:
+      critical: 0
+      high: 4
+      moderate: 6
+      low: 2
+    advisories:
+      - GHSA-67mh-4wv8-2f99
+      - GHSA-3qcw-2rhx-2726
+      - GHSA-hcf7-66rw-9f5r
+      - GHSA-vfj7-8cjw-p6xm
+      - GHSA-68fv-2mgg-jv7q
+      - GHSA-wq5f-xc86-pv6w
+      - GHSA-3w37-wq28-93x7
+      - GHSA-4jqv-mc3x-m676
+      - GHSA-39w2-rjm5-chcv
+      - GHSA-f87g-xv8r-7p7x
+      - GHSA-mcj8-r9mp-w47p
+      - GHSA-cjq9-62q9-8jv4
 assets:
   architecture:
     path: docs/assets/architecture.svg
     kind: Simplified architecture rendering; not deployment evidence
   capture:
-    status: pending
+    status: captured
     mode: Local adapters; synthetic connectivity project
     video_kind: Short silent automated walkthrough with descriptive captions
-    source_revision: null
+    source_revision: 0e10869cda5b2db71bee3a5019a7a8eae1666734
     sha256: {}
 external_gates:
   catalog_schema:

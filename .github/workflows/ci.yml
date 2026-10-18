@@ -155,7 +155,9 @@ jobs:
           pnpm --filter @permit-readiness/web exec playwright install
           --with-deps chromium
       - name: Run browser smoke
-        run: pnpm --filter @permit-readiness/web test:e2e
+        run: |
+          pnpm build
+          pnpm --filter @permit-readiness/web test:e2e
       - name: Upload browser failure artifacts
         if: failure()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02

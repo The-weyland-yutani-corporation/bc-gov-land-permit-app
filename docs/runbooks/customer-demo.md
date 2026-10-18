@@ -31,6 +31,7 @@ actual results, not inferred success from the existence of tests.
 ```powershell
 corepack enable
 corepack pnpm install --frozen-lockfile
+corepack pnpm build
 corepack pnpm --filter @permit-readiness/web dev
 ```
 
@@ -44,7 +45,9 @@ Use Node.js 22 and the pinned pnpm version through Corepack. Do not copy
 Check the shell and `apps/web/.env*` files for inherited settings. For the
 credential-free path, leave `DATABASE_URL` unset and use `APP_ENV=local`,
 `AUTH_MODE=local-demo`, and `PERMIT_AGENT_MODE=local` (the local defaults). Do
-not change deployed environment settings to make a local demo work.
+not change deployed environment settings to make a local demo work. The first
+build creates shared-package outputs; installation alone does not build the
+database package. The build needs no cloud credentials.
 
 **Reset:** stop and restart the web server process to clear the in-memory
 repository. Signing out or opening another browser is not a server-data reset.

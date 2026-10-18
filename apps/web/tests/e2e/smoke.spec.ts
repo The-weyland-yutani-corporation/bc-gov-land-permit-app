@@ -42,14 +42,14 @@ test('local applicant completes the degraded readiness journey', async ({
   await expect(page.getByRole('heading', { level: 1 })).toContainText(
     'Understand what your land-based project may need',
   );
-  await page.keyboard.press('Tab');
-  await expect(
-    page.getByRole('link', { name: 'Skip to main content' }),
-  ).toBeFocused();
   await capture(
     'landing',
     'Local demonstration, not an official government service. No live Azure integrations are shown.',
   );
+  await page.keyboard.press('Tab');
+  await expect(
+    page.getByRole('link', { name: 'Skip to main content' }),
+  ).toBeFocused();
   await page
     .getByRole('link', { name: 'Start a demonstration project' })
     .click();

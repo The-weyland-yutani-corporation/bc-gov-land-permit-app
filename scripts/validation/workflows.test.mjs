@@ -138,6 +138,13 @@ test('pull request CI contains every release gate', async () => {
       );
     }
   }
+  const browserSmoke = findStep(workflow, 'browser-smoke', 'Run browser smoke');
+  assert.ok(browserSmoke.run.indexOf('pnpm build') >= 0);
+  assert.ok(
+    browserSmoke.run.indexOf('pnpm build') <
+      browserSmoke.run.indexOf('test:e2e'),
+    'fresh-checkout browser smoke must build workspace outputs first',
+  );
   for (const expected of [
     'pnpm install --frozen-lockfile',
     'pnpm format:check',
@@ -165,9 +172,16 @@ test('accelerator draft keeps publication gates and handoff paths explicit', asy
   assert.equal(metadata.readiness.catalog_schema_verified, false);
   assert.equal(metadata.license, null);
   assert.deepEqual(metadata.maintainers, []);
-  assert.equal(metadata.experience_modes.local.cloud_credentials_required, false);
+  assert.equal(
+    metadata.experience_modes.local.cloud_credentials_required,
+    false,
+  );
   assert.equal(metadata.experience_modes.azure.cost_approval_required, true);
-  assert.ok(metadata.limitations.includes('Demonstration, not an official government service'));
+  assert.ok(
+    metadata.limitations.includes(
+      'Demonstration, not an official government service',
+    ),
+  );
   const paths = [
     ...Object.values(metadata.documentation),
     metadata.readiness.evidence,
