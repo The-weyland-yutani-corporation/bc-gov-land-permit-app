@@ -1,0 +1,55 @@
+build: Permit Readiness Navigator
+assessment_date: '2026-10-18'
+scope: Synthetic local demonstration; not cloud or catalog certification
+source_revision: null
+environment:
+  node: v22.23.3
+  pnpm: 10.17.1
+checks:
+  frozen_install:
+    status: passed
+    note: >-
+      Initial lockfile pinned unavailable mirror URLs. Regenerated registry
+      metadata with pnpm, then installed from public npm using the frozen
+      lockfile.
+  repository_validation:
+    status: pending
+    command: corepack pnpm validate
+  browser_smoke:
+    status: pending
+    command: corepack pnpm --filter @permit-readiness/web test:e2e
+  evaluation_preflight:
+    status: pending
+    command: corepack pnpm --filter @permit-readiness/agent eval:preflight
+  secret_scan:
+    status: pending
+  dependency_audit:
+    status: pending
+assets:
+  architecture:
+    path: docs/assets/architecture.svg
+    kind: Simplified architecture rendering; not deployment evidence
+  capture:
+    status: pending
+    mode: Local adapters; synthetic connectivity project
+    video_kind: Short silent automated walkthrough with descriptive captions
+    source_revision: null
+    sha256: {}
+external_gates:
+  catalog_schema:
+    status: blocked
+    note: Supplied mcaps-microsoft/accelerators-catalog repository returned 404
+  license:
+    status: pending_owner_approval
+  maintainers_and_private_reporting:
+    status: pending_owner_confirmation
+  authorized_cloud_deployment_and_evaluation:
+    status: not_run
+  independent_handoff:
+    status: not_run
+  manual_accessibility_review:
+    status: not_run
+  full_security_and_history_review:
+    status: not_run
+  human_narrated_five_minute_recording:
+    status: not_produced

@@ -1,8 +1,7 @@
 # Web application guidance
 
 - Follow root `AGENTS.md`, `PRODUCT.md`, and the proven rules in `DESIGN.md`.
-- Use Next.js App Router and React Server Components by default when the web
-  implementation is added.
+- Use Next.js App Router and React Server Components by default.
 - Limit client components to browser-only interaction such as maps, streaming,
   and stateful forms.
 - Keep authentication, ownership checks, persistence, and Foundry calls on the
@@ -11,8 +10,8 @@
 - Use semantic HTML, keyboard operation, visible focus, accessible names,
   helpful errors, and reduced-motion behavior.
 - Preserve a prominent demonstration/non-official service indicator.
-- Place web-specific tests beside behavior or under the future `tests` area and
-  run the root canonical commands.
+- Place web-specific tests beside behavior or under the `tests` area and run the
+  root canonical commands.
 
 <!-- BEGIN:nextjs-agent-rules -->
 

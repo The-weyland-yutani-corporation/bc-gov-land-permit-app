@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFile, readdir } from 'node:fs/promises';
+import { access, readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import test from 'node:test';
 import { parseDocument } from 'yaml';
@@ -130,6 +130,14 @@ test('pull request CI contains every release gate', async () => {
   const { source, workflow } = await loadWorkflow('ci.yml');
   assert.ok(workflow.on.pull_request);
   assert.ok(workflow.on.push.branches.includes('main'));
+  for (const event of ['pull_request', 'push']) {
+    for (const handoffPath of ['*.md', 'accelerator.yaml', 'docs/**']) {
+      assert.ok(
+        workflow.on[event].paths.includes(handoffPath),
+        `${event} must validate ${handoffPath} changes`,
+      );
+    }
+  }
   for (const expected of [
     'pnpm install --frozen-lockfile',
     'pnpm format:check',
@@ -146,6 +154,42 @@ test('pull request CI contains every release gate', async () => {
     'test-results',
   ]) {
     assert.match(source, new RegExp(expected.replaceAll('/', '\\/')));
+  }
+});
+
+test('accelerator draft keeps publication gates and handoff paths explicit', async () => {
+  const document = parseDocument(await readFile('accelerator.yaml', 'utf8'));
+  assert.deepEqual(document.errors, []);
+  const metadata = document.toJS();
+  assert.equal(metadata.id, 'permit-readiness-navigator');
+  assert.equal(metadata.readiness.catalog_schema_verified, false);
+  assert.equal(metadata.license, null);
+  assert.deepEqual(metadata.maintainers, []);
+  assert.equal(metadata.experience_modes.local.cloud_credentials_required, false);
+  assert.equal(metadata.experience_modes.azure.cost_approval_required, true);
+  assert.ok(metadata.limitations.includes('Demonstration, not an official government service'));
+  const paths = [
+    ...Object.values(metadata.documentation),
+    metadata.readiness.evidence,
+    metadata.readiness.publication_checklist,
+    ...Object.values(metadata.assets).flat(),
+  ].filter((value) => typeof value === 'string');
+  for (const relativePath of paths) {
+    assert.ok(!path.isAbsolute(relativePath) && !relativePath.includes('..'));
+    await access(path.resolve(relativePath.split('#')[0]));
+  }
+});
+
+test('public lockfile preserves registry-independent integrity checks', async () => {
+  const document = parseDocument(await readFile('pnpm-lock.yaml', 'utf8'));
+  assert.deepEqual(document.errors, []);
+  for (const [name, entry] of Object.entries(document.toJS().packages)) {
+    assert.ok(entry.resolution.integrity, `${name} must retain integrity`);
+    assert.equal(
+      entry.resolution.tarball,
+      undefined,
+      `${name} must not pin a private mirror tarball URL`,
+    );
   }
 });
 

@@ -33,3 +33,15 @@ Current architecture-contract documents:
 - [`decisions/0003-identity-approach.md`](decisions/0003-identity-approach.md)
 - [`decisions/0004-deployment-and-environments.md`](decisions/0004-deployment-and-environments.md)
 - [`runbooks/customer-demo.md`](runbooks/customer-demo.md)
+
+Accelerator handoff:
+
+- [`../accelerator.yaml`](../accelerator.yaml) — schema-neutral catalog draft;
+  null approvals are publication gates, not defaults
+- [`runbooks/customer-demo.md`](runbooks/customer-demo.md) — readiness
+  checklist, local setup/reset, 5-/15-minute scripts, evidence capture, and
+  customer pilot brief
+- [`assets/evidence.yaml`](assets/evidence.yaml) — actual verification status
+  and explicit gaps; not a production or catalog certification
+- [`assets/architecture.svg`](assets/architecture.svg) — accessible simplified
+  local/cloud architecture; root architecture remains authoritative

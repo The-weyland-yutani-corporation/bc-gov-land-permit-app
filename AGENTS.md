@@ -3,8 +3,8 @@
 ## Purpose
 
 This repository is a reusable public-sector permit-readiness reference app. It
-will contain a Next.js application, deterministic permit reasoning, PostgreSQL
-and PostGIS persistence, and a Microsoft Foundry-hosted TypeScript agent.
+contains a Next.js application, deterministic permit reasoning, PostgreSQL and
+PostGIS persistence, and a Microsoft Foundry-hosted TypeScript agent.
 
 This is a demonstration, not an official service or source of binding legal
 decisions.
