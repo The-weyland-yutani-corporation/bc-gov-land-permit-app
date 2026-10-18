@@ -1,7 +1,7 @@
 build: Permit Readiness Navigator
 assessment_date: '2026-10-18'
 scope: Synthetic local demonstration; not cloud or catalog certification
-source_revision: 0e10869cda5b2db71bee3a5019a7a8eae1666734
+source_revision: ccbcd0d5aa109c6478d82e1033701b212b15a6e0
 environment:
   node: v22.23.3
   pnpm: 10.17.1
@@ -11,10 +11,66 @@ checks:
     note: >-
       Initial lockfile pinned unavailable mirror URLs. Regenerated registry
       metadata with pnpm, then installed from public npm using the frozen
-      lockfile.
+      lockfile. Package versions, importer declarations, and dependency
+      snapshots were compared to the original lockfile and are unchanged.
   repository_validation:
-    status: pending
+    status: failed
     command: corepack pnpm validate
+    note: >-
+      Format, lint, and type checks passed. Full tests stopped in the unchanged
+      guidance-search suite: nested test "guidance not reviewed as of the
+      evaluation date is excluded" was cancelled because its parent finished.
+      Other running suites were interrupted. This is not a passing validation.
+  production_build:
+    status: passed
+    command: corepack pnpm build
+    result: All 10 workspace builds passed before browser capture
+  formatting:
+    status: passed
+    command: corepack pnpm format:check
+  lint:
+    status: passed
+    command: corepack pnpm lint
+  types:
+    status: passed
+    command: corepack pnpm typecheck
+  handoff_and_workflow_tests:
+    status: passed
+    command: corepack pnpm test:workflows
+    result: 7 tests including asset paths, SHA-256 hashes, and CI prerequisites
+  other_workspace_tests:
+    status: passed
+    command: corepack pnpm -r --filter '!@permit-readiness/guidance-search' test
+    note: >-
+      Diagnostic run of the other nine workspace suites after full validation
+      stopped. Not a replacement for the failing root test gate or live database
+      integration. Web has 64 Vitest cases; agent has 33 Node test cases.
+  infrastructure_and_release_tests:
+    status: passed
+    command:
+      node --test scripts/validation/infra.test.mjs
+      scripts/validation/release-routing.test.mjs
+    result: 4 tests
+  bicep_compile:
+    status: passed
+    tool: Bicep CLI 0.48.1
+    note: >-
+      Compiled main.bicep and both dev/prod parameter files locally with the
+      synthetic CI environment declared in .github/workflows/ci.yml. No Azure
+      deployment, authentication, or provisioning was performed.
+  github_actions_baseline:
+    status: failed
+    source_revision: 0c7cb0d9aedca52b4ac3af588d637c4eb732f53a
+    run_url: https://github.com/The-weyland-yutani-corporation/bc-gov-land-permit-app/actions/runs/39077881758
+    note: >-
+      Logs confirmed missing shared-package build outputs in quality/browser
+      jobs and missing Bicep compilation environment values. This change adds
+      those build prerequisites and synthetic values with regression checks. No
+      passing GitHub Actions run for this branch has been observed.
+  isolated_guidance_tests:
+    status: failed
+    command: corepack pnpm --filter @permit-readiness/guidance-search test
+    note: Same cancelledByParent failure reproduced in the unchanged test file
   browser_smoke:
     status: passed
     command: corepack pnpm --filter @permit-readiness/web test:e2e
@@ -58,6 +114,15 @@ checks:
       - GHSA-f87g-xv8r-7p7x
       - GHSA-mcj8-r9mp-w47p
       - GHSA-cjq9-62q9-8jv4
+  codeql:
+    status: passed
+    result: 0 alerts in actions and javascript
+  automated_code_review:
+    status: unavailable
+    note: Review backend model unavailable; not counted as a completed review
+  independent_code_review:
+    status: passed
+    note: Read-only code-review specialist found no significant issues
 assets:
   architecture:
     path: docs/assets/architecture.svg
@@ -66,8 +131,20 @@ assets:
     status: captured
     mode: Local adapters; synthetic connectivity project
     video_kind: Short silent automated walkthrough with descriptive captions
-    source_revision: 0e10869cda5b2db71bee3a5019a7a8eae1666734
-    sha256: {}
+    source_revision: ccbcd0d5aa109c6478d82e1033701b212b15a6e0
+    note: Short automated visual aid, not a narrated five-minute recording
+    sha256:
+      docs/assets/architecture.svg: f50396f6a01bc1260d48aef5eec4f477b02310c374877b0e9488789817ec5369
+      docs/assets/landing.png: 11892233176a4749d181510df73312bcbd531329caec8e9ba822015091dff2a9
+      docs/assets/intake.png: a3ce25de814afaac2c78cfa471faff153ae90a253be4b763597d4133885199fd
+      docs/assets/location.png: 43d97dc01e565d2ffcc4e95301e0dcfb03ec8e26c62b76dd896f5452cd32b764
+      docs/assets/report.png: c5ce4a8ed4feaf83720e80024597db9a17261480133de74a562abaa2a56212de
+      docs/assets/tasks.png: df2a1ef9c090bc3f913ea0f93b23dcebfb51c3c181265e7ca610aa4cef4a194e
+      docs/assets/mobile-report.png: 03441eb5bec3c70ed8aa8e7f24447ce8884b4265fdb1b903c9f2f92c1ff722db
+      docs/assets/walkthrough.html: 17542cc199f43f80d09a36e96719f405f92ab76541f30780c3f839469a04bc36
+      docs/assets/walkthrough.txt: 7e4530a957575ac1c05a1ddbfd5abe72a9485c900c20bc209d0bdd02355e8f0c
+      docs/assets/walkthrough.vtt: 65b13abbf9e2d535ff64521f262fff8a01ecb55f630fe8fdd60e54d1d788a7a9
+      docs/assets/walkthrough.webm: 1e8cadd5b3b17f0b277246b85ada63d0a31a5741312871f612a3f6eff3f9734f
 external_gates:
   catalog_schema:
     status: blocked

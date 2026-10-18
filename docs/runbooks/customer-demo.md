@@ -26,6 +26,11 @@ customer handoff; obtain license, maintainer, private-reporting, and
 catalog-schema approvals. See [the evidence record](../assets/evidence.yaml) for
 actual results, not inferred success from the existence of tests.
 
+Current verification: both browser journeys, the build, formatting, lint, types,
+evaluation preflight, and handoff checks passed. Full `pnpm validate` remains
+blocked by a cancelled nested subtest in the unchanged guidance-search suite.
+This failure is recorded, not suppressed or represented as a passing gate.
+
 ## Local setup and reset
 
 ```powershell
@@ -234,7 +239,8 @@ to measure better-prepared enquiries.”
 - [x] Draft accelerator metadata, explicitly not a verified catalog schema.
 - [x] CI includes root Markdown and accelerator metadata changes.
 - [ ] Clean-install validation and browser results recorded as passing.
-- [ ] Reviewed desktop/mobile screenshots and captioned local video published.
+- [x] Synthetic desktop/mobile screenshots, captions, transcript, and local
+      video captured.
 - [ ] Human-narrated five-minute demo rehearsed and recorded.
 - [ ] Independent SE/CSA setup and adaptation handoff completed.
 - [ ] Manual WCAG 2.2 AA journey review completed; record scope and findings.
@@ -248,6 +254,11 @@ to measure better-prepared enquiries.”
       evidenced.
 - [ ] Release commit/tag and all asset hashes recorded; catalog submission
       approved.
+
+The local dependency audit reports 12 existing advisories (4 high, 6 moderate, 2
+low). Package versions were preserved while normalizing lockfile registry
+metadata. Triage and remediation are required before security sign-off; these
+are not CodeQL alerts or newly introduced dependencies.
 
 On 2026-10-18, the supplied catalog repository
 `https://github.com/mcaps-microsoft/accelerators-catalog` returned 404 through

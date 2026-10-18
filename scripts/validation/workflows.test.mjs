@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { access, readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import test from 'node:test';
@@ -145,6 +146,28 @@ test('pull request CI contains every release gate', async () => {
       browserSmoke.run.indexOf('test:e2e'),
     'fresh-checkout browser smoke must build workspace outputs first',
   );
+  const qualitySteps = workflow.jobs.quality.steps;
+  assert.ok(
+    qualitySteps.findIndex((step) => step.name === 'Build') <
+      qualitySteps.findIndex((step) => step.name === 'Type-check'),
+    'fresh-checkout type checks require shared-package build outputs',
+  );
+  const bicepBuild = findStep(
+    workflow,
+    'infrastructure',
+    'Build Bicep and parameter files',
+  );
+  for (const profile of ['dev', 'prod']) {
+    const parameters = await readFile(
+      path.resolve('infra', 'parameters', `${profile}.bicepparam`),
+      'utf8',
+    );
+    for (const [, name] of parameters.matchAll(
+      /readEnvironmentVariable\('([A-Z0-9_]+)'\)/g,
+    )) {
+      assert.ok(bicepBuild.env[name], `Bicep CI requires a synthetic ${name}`);
+    }
+  }
   for (const expected of [
     'pnpm install --frozen-lockfile',
     'pnpm format:check',
@@ -191,6 +214,25 @@ test('accelerator draft keeps publication gates and handoff paths explicit', asy
   for (const relativePath of paths) {
     assert.ok(!path.isAbsolute(relativePath) && !relativePath.includes('..'));
     await access(path.resolve(relativePath.split('#')[0]));
+  }
+  const evidence = parseDocument(
+    await readFile(metadata.readiness.evidence, 'utf8'),
+  );
+  assert.deepEqual(evidence.errors, []);
+  const capture = evidence.toJS().assets.capture;
+  assert.match(capture.source_revision, /^[0-9a-f]{40}$/);
+  const assets = Object.values(metadata.assets).flat();
+  for (const asset of assets) {
+    const expectedHash = capture.sha256[asset];
+    assert.match(expectedHash, /^[0-9a-f]{64}$/, `${asset} needs provenance`);
+    const actualHash = createHash('sha256')
+      .update(await readFile(asset))
+      .digest('hex');
+    assert.equal(
+      actualHash,
+      expectedHash,
+      `${asset} must match its capture record`,
+    );
   }
 });
 

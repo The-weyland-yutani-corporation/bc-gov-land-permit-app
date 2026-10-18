@@ -51,9 +51,12 @@ approvals.
 7. Open the derived tasks and complete a preparation action.
 
 Use the [5-/15-minute demonstration scripts](docs/runbooks/customer-demo.md),
-[captioned local recording](docs/assets/walkthrough.html), and
+[local video](docs/assets/walkthrough.webm),
+[captioned player](docs/assets/walkthrough.html), and
 [asset/evidence inventory](docs/runbooks/customer-demo.md#evidence-and-assets).
 The recording is a short automated walkthrough, not a narrated five-minute demo.
+Download the player and adjacent media together or use a local HTTP preview;
+GitHub displays the player's HTML source rather than executing it.
 
 ## Choose your experience
 
@@ -171,6 +174,8 @@ The shared library workspaces have no long-running development process; their
 - `packages/db` — persistence adapters and migrations
 - `packages/domain` — deterministic business rules and domain services
 - `packages/jurisdiction-config` — versioned jurisdiction configuration
+- `packages/guidance-search` — approved, versioned guidance ingestion and
+  retrieval
 - `packages/observability` — shared telemetry conventions
 - `packages/test-utils` — shared deterministic test fixtures
 - `packages/ui` — shared accessible presentation primitives
@@ -218,6 +223,9 @@ draft; unresolved publication gates are tracked in the
 The dependency audit found existing advisories, including high-severity
 findings; see [verification scope](docs/assets/evidence.yaml). This change does
 not upgrade dependency versions or assert security clearance for publication.
+
+Full repository validation also remains blocked by an unchanged guidance-search
+nested-subtest failure; the local browser journeys and handoff checks pass.
 
 For non-sensitive questions, use this repository's
 [GitHub Issues](https://github.com/The-weyland-yutani-corporation/bc-gov-land-permit-app/issues).
